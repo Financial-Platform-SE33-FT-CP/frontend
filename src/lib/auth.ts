@@ -1,4 +1,5 @@
 const TOKEN_KEY = "auth_token";
+const REFRESH_TOKEN_KEY = "auth_refresh_token";
 const TENANT_ID_KEY = "tenant_id";
 
 function isBrowser(): boolean {
@@ -30,6 +31,39 @@ export function removeToken(): void {
   } catch {
     // localStorage unavailable
   }
+}
+
+export function setRefreshToken(token: string): void {
+  if (!isBrowser()) return;
+  try {
+    localStorage.setItem(REFRESH_TOKEN_KEY, token);
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+export function getRefreshToken(): string | null {
+  if (!isBrowser()) return null;
+  try {
+    return localStorage.getItem(REFRESH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function removeRefreshToken(): void {
+  if (!isBrowser()) return;
+  try {
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+export function clearSession(): void {
+  removeToken();
+  removeRefreshToken();
+  removeTenantId();
 }
 
 export function getTenantId(): string | null {
