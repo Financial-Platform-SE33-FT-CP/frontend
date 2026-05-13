@@ -1,5 +1,5 @@
 import { api } from "./api";
-import { setRefreshToken, setToken } from "./auth";
+import { clearSession, getRefreshToken, setRefreshToken, setToken } from "./auth";
 
 function authBaseUrl(): string {
   const raw =
@@ -11,19 +11,30 @@ function authOpts() {
   return { baseUrl: authBaseUrl() };
 }
 
-export type RegisterResponse = {
+export type RegisterUser = {
   id: string;
   email: string;
   full_name: string | null;
-  email_verified: boolean;
-  is_active: boolean;
-  created_at: string;
+  is_email_verified: boolean;
+};
+
+export type RegisterResponse = {
+  message: string;
+  user: RegisterUser;
+  /** Present in non-production for local testing. */
+  verification_code: string | null;
 };
 
 export type TokenResponse = {
   access_token: string;
-  refresh_token: string;
+  refresh_token: string | null;
   token_type: string;
+  expires_in: number;
+  refresh_expires_in: number | null;
+};
+
+export type MessageResponse = {
+  message: string;
 };
 
 export async function registerUser(payload: {
@@ -55,6 +66,47 @@ export async function loginUser(payload: {
     authOpts(),
   );
   setToken(data.access_token);
-  setRefreshToken(data.refresh_token);
+  if (data.refresh_token) {
+    setRefreshToken(data.refresh_token);
+  }
   return data;
+}
+
+export async function verifyEmailCode(payload: {
+  email: string;
+  code: string;
+}): Promise<MessageResponse> {
+  return api.post<MessageResponse>(
+    "/auth/verify-email-code",
+    {
+      email: payload.email.trim(),
+      code: payload.code.trim().replace(/\s/g, ""),
+    },
+    authOpts(),
+  );
+}
+
+export async function resendVerificationCode(email: string): Promise<MessageResponse> {
+  return api.post<MessageResponse>(
+    "/auth/resend-verification-code",
+    { email: email.trim() },
+    authOpts(),
+  );
+}
+
+/** Revokes refresh token on server and clears local session. */
+export async function logoutUser(): Promise<void> {
+  const refresh = getRefreshToken();
+  if (refresh) {
+    try {
+      await api.post<void>(
+        "/auth/logout",
+        { refresh_token: refresh },
+        authOpts(),
+      );
+    } catch {
+      // Still clear client session if server rejects token
+    }
+  }
+  clearSession();
 }

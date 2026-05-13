@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { logoutUser } from "@/lib/auth-api";
 
 const sidebarLinks = [
   { href: "/tenants", label: "Tenants" },
@@ -15,6 +18,19 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await logoutUser();
+      router.push("/login");
+      router.refresh();
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -44,8 +60,16 @@ export default function DashboardLayout({
       {/* Main content */}
       <div className="flex flex-1 flex-col">
         <header className="flex h-14 items-center justify-end border-b px-6">
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">User</span>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={loggingOut}
+              onClick={handleLogout}
+            >
+              {loggingOut ? "Signing out…" : "Log out"}
+            </Button>
           </div>
         </header>
         <main className="flex-1 p-6">{children}</main>

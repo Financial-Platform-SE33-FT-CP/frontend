@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatApiError } from "@/lib/api";
@@ -17,7 +17,6 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [doneMessage, setDoneMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -28,53 +27,32 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setDoneMessage(null);
     setPending(true);
     try {
       const trimmedName = fullName.trim();
-      const user = await registerUser({
+      const res = await registerUser({
         email,
         password,
         full_name: trimmedName.length > 0 ? trimmedName : null,
       });
 
-      if (user.email_verified) {
+      if (res.user.is_email_verified) {
         await loginUser({ email, password });
         router.push("/tenants");
         return;
       }
 
-      setDoneMessage(
-        "You are registered. Please verify your email before signing in. " +
-          "After you verify your email, return here to log in.",
-      );
+      const em = res.user.email.trim().toLowerCase();
+      if (typeof window !== "undefined" && res.verification_code) {
+        sessionStorage.setItem(`auth_dev_verify_code:${em}`, res.verification_code);
+      }
+      router.push(`/verify-email?email=${encodeURIComponent(res.user.email)}`);
     } catch (err) {
       setError(formatApiError(err));
     } finally {
       setPending(false);
     }
   };
-
-  if (doneMessage) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-10">
-        <Card className="w-full max-w-md shadow-sm">
-          <CardHeader className="space-y-1 text-center">
-            <CardTitle className="text-2xl font-semibold tracking-tight">
-              Check your email
-            </CardTitle>
-            <CardDescription>Almost there</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm leading-relaxed text-muted-foreground">{doneMessage}</p>
-            <Button asChild className="w-full">
-              <Link href="/login?registered=1">Continue to sign in</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-10">
@@ -83,9 +61,10 @@ export default function RegisterPage() {
           <CardTitle className="text-2xl font-semibold tracking-tight">
             Create an account
           </CardTitle>
-          <CardDescription>
-            Register with email and password. Passwords must be at least 8 characters.
-          </CardDescription>
+          <div className="text-sm text-muted-foreground" suppressHydrationWarning>
+            Register with email and password. Use 8+ characters including uppercase,
+            lowercase, and a digit.
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {error ? (
@@ -155,6 +134,14 @@ export default function RegisterPage() {
               {pending ? "Creating account…" : "Create account"}
             </Button>
           </form>
+          <p className="text-center text-sm text-muted-foreground">
+            <Link
+              href="/verify-email"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Enter email verification code
+            </Link>
+          </p>
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link
