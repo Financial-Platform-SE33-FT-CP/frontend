@@ -37,7 +37,7 @@ export default function RegisterPage() {
         full_name: trimmedName.length > 0 ? trimmedName : null,
       });
 
-      if (res.user.is_email_verified) {
+      if (res.email_verified) {
         await loginUser({ email, password });
         const me = await fetchAuthMe();
         setWorkspaceUserId(me.id);
@@ -45,11 +45,11 @@ export default function RegisterPage() {
         return;
       }
 
-      const em = res.user.email.trim().toLowerCase();
+      const em = res.email.trim().toLowerCase();
       if (typeof window !== "undefined" && res.verification_code) {
         sessionStorage.setItem(`auth_dev_verify_code:${em}`, res.verification_code);
       }
-      router.push(`/verify-email?email=${encodeURIComponent(res.user.email)}`);
+      router.push(`/verify-email?email=${encodeURIComponent(res.email)}`);
     } catch (err) {
       setError(formatApiError(err));
     } finally {

@@ -14,16 +14,15 @@ function authOpts() {
   return { baseUrl: authBaseUrl() };
 }
 
-export type RegisterUser = {
+/** POST /auth/register — flat user fields + metadata (matches auth-service). */
+export type RegisterResponse = {
   id: string;
   email: string;
   full_name: string | null;
-  is_email_verified: boolean;
-};
-
-export type RegisterResponse = {
+  email_verified: boolean;
+  is_active: boolean;
+  created_at: string;
   message: string;
-  user: RegisterUser;
   /** Present in non-production for local testing. */
   verification_code: string | null;
 };
