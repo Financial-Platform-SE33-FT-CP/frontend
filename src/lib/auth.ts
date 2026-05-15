@@ -33,6 +33,15 @@ export function removeToken(): void {
   }
 }
 
+export function setRefreshToken(token: string): void {
+  if (!isBrowser()) return;
+  try {
+    localStorage.setItem(REFRESH_TOKEN_KEY, token);
+  } catch {
+    // localStorage unavailable
+  }
+}
+
 export function getRefreshToken(): string | null {
   if (!isBrowser()) return null;
   try {
@@ -42,22 +51,19 @@ export function getRefreshToken(): string | null {
   }
 }
 
-export function setRefreshToken(token: string): void {
-  if (!isBrowser()) return;
-  try {
-    localStorage.setItem(REFRESH_TOKEN_KEY, token);
-  } catch {
-    /* ignore */
-  }
-}
-
 export function removeRefreshToken(): void {
   if (!isBrowser()) return;
   try {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
   } catch {
-    /* ignore */
+    // localStorage unavailable
   }
+}
+
+export function clearSession(): void {
+  removeToken();
+  removeRefreshToken();
+  removeTenantId();
 }
 
 export function getTenantId(): string | null {

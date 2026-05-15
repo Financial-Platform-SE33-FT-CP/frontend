@@ -39,3 +39,12 @@ export function clearActiveTenant(): void {
   window.localStorage.removeItem(TENANT_ROLE);
   notifyWorkspaceChange();
 }
+
+/** Clears workspace user + active tenant (call on full logout). */
+export function clearWorkspaceSession(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(USER_ID);
+  window.localStorage.removeItem(TENANT_ID);
+  window.localStorage.removeItem(TENANT_ROLE);
+  notifyWorkspaceChange();
+}

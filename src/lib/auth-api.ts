@@ -1,81 +1,128 @@
-const base = () =>
-  (process.env.NEXT_PUBLIC_AUTH_SERVICE_URL ?? "http://localhost:8001").replace(/\/$/, "");
-export type RegisterUserResponse = {
+import { api } from "./api";
+import { clearSession, getRefreshToken, setRefreshToken, setToken } from "./auth";
+import { clearWorkspaceSession } from "./workspace-session";
+
+function authBaseUrl(): string {
+  const raw =
+    process.env.NEXT_PUBLIC_AUTH_SERVICE_URL ??
+    process.env.NEXT_PUBLIC_AUTH_URL ??
+    "http://localhost:8001";
+  return raw.replace(/\/$/, "");
+}
+
+function authOpts() {
+  return { baseUrl: authBaseUrl() };
+}
+
+export type RegisterUser = {
   id: string;
   email: string;
   full_name: string | null;
-  email_verified: boolean;
-  is_active: boolean;
-  created_at: string;
+  is_email_verified: boolean;
 };
 
-async function parseError(res: Response): Promise<string> {
-  try {
-    const j = (await res.json()) as { detail?: unknown };
-    if (typeof j.detail === "string") return j.detail;
-    if (Array.isArray(j.detail)) {
-      return j.detail
-        .map((x: unknown) => (typeof x === "object" && x && "msg" in x ? String((x as { msg: string }).msg) : JSON.stringify(x)))
-        .join("; ");
-    }
-    return res.statusText;
-  } catch {
-    return res.statusText;
-  }
-}
+export type RegisterResponse = {
+  message: string;
+  user: RegisterUser;
+  /** Present in non-production for local testing. */
+  verification_code: string | null;
+};
 
-export async function registerAccount(body: {
-  email: string;
-  password: string;
-  full_name: string | null;
-}): Promise<RegisterUserResponse> {
-  const res = await fetch(`${base()}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email: body.email.trim(),
-      password: body.password,
-      full_name: body.full_name?.trim() || null,
-    }),
-  });
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<RegisterUserResponse>;
-}
-
-export type LoginTokensResponse = {
+export type TokenResponse = {
   access_token: string;
-  token_type?: string;
+  refresh_token: string | null;
+  token_type: string;
   expires_in: number;
-  refresh_token?: string | null;
-  refresh_expires_in?: number | null;
+  refresh_expires_in: number | null;
 };
 
-export async function loginAccount(body: { email: string; password: string }): Promise<LoginTokensResponse> {
-  const res = await fetch(`${base()}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email: body.email.trim(),
-      password: body.password,
-    }),
-  });
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<LoginTokensResponse>;
-}
+export type MessageResponse = {
+  message: string;
+};
 
 export type MeResponse = {
   id: string;
   email: string;
-  email_verified: boolean;
+  email_verified?: boolean;
+  is_email_verified?: boolean;
 };
 
-export async function fetchAuthMe(accessToken: string): Promise<MeResponse> {
-  const res = await fetch(`${base()}/auth/me`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/json",
+export async function registerUser(payload: {
+  email: string;
+  password: string;
+  full_name?: string | null;
+}): Promise<RegisterResponse> {
+  return api.post<RegisterResponse>(
+    "/auth/register",
+    {
+      email: payload.email.trim(),
+      password: payload.password,
+      full_name: payload.full_name?.trim() || null,
     },
-  });
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<MeResponse>;
+    authOpts(),
+  );
+}
+
+export async function loginUser(payload: {
+  email: string;
+  password: string;
+}): Promise<TokenResponse> {
+  const data = await api.post<TokenResponse>(
+    "/auth/login",
+    {
+      email: payload.email.trim(),
+      password: payload.password,
+    },
+    authOpts(),
+  );
+  setToken(data.access_token);
+  if (data.refresh_token) {
+    setRefreshToken(data.refresh_token);
+  }
+  return data;
+}
+
+/** Requires access token already stored (e.g. after `loginUser`). */
+export async function fetchAuthMe(): Promise<MeResponse> {
+  return api.get<MeResponse>("/auth/me", authOpts());
+}
+
+export async function verifyEmailCode(payload: {
+  email: string;
+  code: string;
+}): Promise<MessageResponse> {
+  return api.post<MessageResponse>(
+    "/auth/verify-email-code",
+    {
+      email: payload.email.trim(),
+      code: payload.code.trim().replace(/\s/g, ""),
+    },
+    authOpts(),
+  );
+}
+
+export async function resendVerificationCode(email: string): Promise<MessageResponse> {
+  return api.post<MessageResponse>(
+    "/auth/resend-verification-code",
+    { email: email.trim() },
+    authOpts(),
+  );
+}
+
+/** Revokes refresh token on server and clears local session. */
+export async function logoutUser(): Promise<void> {
+  const refresh = getRefreshToken();
+  if (refresh) {
+    try {
+      await api.post<void>(
+        "/auth/logout",
+        { refresh_token: refresh },
+        authOpts(),
+      );
+    } catch {
+      // Still clear client session if server rejects token
+    }
+  }
+  clearSession();
+  clearWorkspaceSession();
 }
