@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { WorkspaceDevBar } from "@/components/tenant/workspace-dev-bar";
 
 const sidebarLinks = [
   { href: "/tenants", label: "Tenants" },
+  { href: "/tenants/setup", label: "New company" },
   { href: "/coa", label: "Chart of Accounts" },
 ];
 
@@ -18,7 +20,6 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
       <aside className="flex w-64 flex-col border-r bg-muted/40">
         <div className="flex h-14 items-center border-b px-6 font-semibold">
           <Link href="/tenants">Accounting Platform</Link>
@@ -41,12 +42,10 @@ export default function DashboardLayout({
         </nav>
       </aside>
 
-      {/* Main content */}
       <div className="flex flex-1 flex-col">
-        <header className="flex h-14 items-center justify-end border-b px-6">
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">User</span>
-          </div>
+        <header className="flex min-h-14 flex-col gap-2 border-b px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <WorkspaceDevBar />
+          <span className="text-sm text-muted-foreground">Dashboard</span>
         </header>
         <main className="flex-1 p-6">{children}</main>
       </div>

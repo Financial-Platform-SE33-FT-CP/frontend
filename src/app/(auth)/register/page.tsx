@@ -2,23 +2,45 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { registerAccount } from "@/lib/auth-api";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: implement registration
+    setLoading(true);
+    try {
+      await registerAccount({
+        email,
+        password,
+        full_name: name.trim() || null,
+      });
+      toast.success("Account created", {
+        description: "You can sign in now (check email if verification is required).",
+      });
+      router.push("/login");
+    } catch (err) {
+      toast.error("Registration failed", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
+    <div className="relative z-0 flex min-h-screen items-center justify-center px-4 py-12">
+      <Card className="relative z-10 w-full max-w-sm">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl">Create an account</CardTitle>
           <CardDescription>
@@ -26,7 +48,7 @@ export default function RegisterPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                 Name
@@ -37,7 +59,7 @@ export default function RegisterPage() {
                 placeholder="John Doe"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                required
+                autoComplete="name"
               />
             </div>
             <div className="space-y-2">
@@ -51,6 +73,7 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
@@ -64,10 +87,13 @@ export default function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={8}
+                autoComplete="new-password"
               />
+              <p className="text-xs text-muted-foreground">At least 8 characters (same as API).</p>
             </div>
-            <Button type="submit" className="w-full">
-              Create account
+            <Button type="submit" className="w-full cursor-pointer" disabled={loading}>
+              {loading ? "Creating…" : "Create account"}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
