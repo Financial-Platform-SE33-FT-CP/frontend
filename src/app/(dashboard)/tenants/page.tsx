@@ -19,15 +19,6 @@ export default function TenantsPage() {
   const [tenants, setTenants] = useState<TenantDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [devUserId, setDevUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const syncDev = () => setDevUserId(getWorkspaceUserId());
-    syncDev();
-    window.addEventListener("acct-workspace-change", syncDev);
-    return () => window.removeEventListener("acct-workspace-change", syncDev);
-  }, []);
-
   const refresh = useCallback(async () => {
     const uid = getWorkspaceUserId();
     if (!uid) {
@@ -80,22 +71,11 @@ export default function TenantsPage() {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Tenants</h1>
-          <p className="mt-2 text-muted-foreground">
-            US-2 / US-3: companies you belong to and your role in each. Select a tenant to manage
-            team members (Owner only).
-          </p>
         </div>
         <Button asChild>
           <Link href="/tenants/setup">New company</Link>
         </Button>
       </div>
-
-      {!devUserId && (
-        <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-          Set your <strong>Dev: User ID</strong> in the header to match your auth user UUID, then
-          refresh. Tenant APIs send it as <code className="rounded bg-muted px-1">X-User-Id</code>.
-        </p>
-      )}
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading tenants…</p>
@@ -131,10 +111,7 @@ export default function TenantsPage() {
                     }`}
                   >
                     <div className="font-semibold">{t.name}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      ID: <span className="font-mono">{t.id}</span>
-                    </div>
-                    <div className="mt-1 text-xs">
+                    <div className="mt-2 text-xs">
                       Role: <strong>{apiRoleLabel(t.current_user_role ?? "")}</strong> · Currency:{" "}
                       {t.base_currency} · FY starts {t.fiscal_year_start_mmdd}
                     </div>

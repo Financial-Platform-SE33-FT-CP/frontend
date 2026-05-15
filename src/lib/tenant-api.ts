@@ -28,6 +28,8 @@ export type TenantMemberDto = {
   id: string;
   tenant_id: string;
   user_id: string;
+  /** Present when using portal `/tenants/{id}/users`; member's auth email. */
+  email: string;
   role: string;
   created_at: string;
 };
@@ -77,13 +79,13 @@ export async function listTenantMembers(tenantId: string): Promise<TenantMemberD
 
 export async function addTenantMember(
   tenantId: string,
-  userId: string,
+  email: string,
   role: TenantApiRole,
 ): Promise<TenantMemberDto> {
   const res = await fetch(`${base()}/tenants/${tenantId}/users`, {
     method: "POST",
     headers: headers(true),
-    body: JSON.stringify({ user_id: userId, role }),
+    body: JSON.stringify({ email: email.trim().toLowerCase(), role }),
   });
   if (!res.ok) throw new Error(await parseError(res));
   return res.json() as Promise<TenantMemberDto>;

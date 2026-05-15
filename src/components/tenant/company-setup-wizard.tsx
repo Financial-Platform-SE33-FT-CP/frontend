@@ -21,27 +21,26 @@ function slugify(name: string): string {
     .slice(0, 60);
 }
 
+function slugFromCompanyName(name: string): string {
+  const raw = slugify(name);
+  return raw.length > 0 ? raw : "company";
+}
+
 const STEPS = ["Company", "Currency & year", "Review"] as const;
 
 export function CompanySetupWizard() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugTouched, setSlugTouched] = useState(false);
   const [currency, setCurrency] = useState<string>("SGD");
   const [fyMonth, setFyMonth] = useState("04");
   const [fyDay, setFyDay] = useState("01");
   const [submitting, setSubmitting] = useState(false);
 
   const fiscalMmdd = useMemo(() => `${fyMonth}-${fyDay}`, [fyMonth, fyDay]);
+  const internalSlug = useMemo(() => slugFromCompanyName(name), [name]);
 
-  const onNameChange = (v: string) => {
-    setName(v);
-    if (!slugTouched) setSlug(slugify(v));
-  };
-
-  const canNext0 = name.trim().length > 0 && /^[a-z0-9-]+$/.test(slug) && slug.length > 0;
+  const canNext0 = name.trim().length > 0;
   const canNext1 = CURRENCIES.includes(currency as (typeof CURRENCIES)[number]);
 
   async function onSubmit() {
@@ -49,7 +48,7 @@ export function CompanySetupWizard() {
     try {
       const tenant = await createTenant({
         name: name.trim(),
-        slug,
+        slug: internalSlug,
         base_currency: currency,
         fiscal_year_start_mmdd: fiscalMmdd,
       });
@@ -70,11 +69,10 @@ export function CompanySetupWizard() {
   return (
     <Card className="mx-auto max-w-lg">
       <CardHeader>
-        <CardTitle>Create your company (US-2)</CardTitle>
+        <CardTitle>Create your company</CardTitle>
         <CardDescription>
-          Each company is a separate tenant with its own ID, base currency, and financial year.
-          Data is isolated by <code className="rounded bg-muted px-1">tenant_id</code> on the
-          server.
+          Each company has its own ID, reporting currency, and financial year start. Your data stays
+          separate from other companies on the platform.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -99,22 +97,7 @@ export function CompanySetupWizard() {
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Company name</label>
-              <Input value={name} onChange={(e) => onNameChange(e.target.value)} placeholder="Acme Pte Ltd" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">URL slug</label>
-              <Input
-                value={slug}
-                onChange={(e) => {
-                  setSlugTouched(true);
-                  setSlug(e.target.value.toLowerCase());
-                }}
-                placeholder="acme-pte-ltd"
-              />
-              <p className="text-xs text-muted-foreground">Lowercase letters, numbers, and hyphens only.</p>
-              {!canNext0 && name && (
-                <p className="text-xs text-destructive">Fix slug format before continuing.</p>
-              )}
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Pte Ltd" />
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" asChild>
@@ -143,7 +126,7 @@ export function CompanySetupWizard() {
                 ))}
               </select>
               <p className="text-xs text-muted-foreground">
-                Used as the reporting currency for this tenant (US-2 acceptance).
+                Used as the reporting currency for this company.
               </p>
             </div>
             <div className="space-y-2">
@@ -194,10 +177,6 @@ export function CompanySetupWizard() {
                 <span className="text-muted-foreground">Company:</span> {name}
               </li>
               <li>
-                <span className="text-muted-foreground">Slug:</span>{" "}
-                <code className="rounded bg-muted px-1">{slug}</code>
-              </li>
-              <li>
                 <span className="text-muted-foreground">Base currency:</span> {currency}
               </li>
               <li>
@@ -205,9 +184,9 @@ export function CompanySetupWizard() {
               </li>
             </ul>
             <p className="text-xs text-muted-foreground">
-              On create, the backend assigns a unique tenant ID and triggers the default{" "}
-              <strong>Singapore SME</strong> chart of accounts seed (when COA service is
-              reachable).
+              When you create the company, we assign a unique ID and set up the default{" "}
+              <strong>Singapore SME</strong> chart of accounts (when the accounting service is
+              available).
             </p>
             <div className="flex justify-between gap-2">
               <Button type="button" variant="outline" onClick={() => setStep(1)}>

@@ -41,3 +41,41 @@ export async function registerAccount(body: {
   if (!res.ok) throw new Error(await parseError(res));
   return res.json() as Promise<RegisterUserResponse>;
 }
+
+export type LoginTokensResponse = {
+  access_token: string;
+  token_type?: string;
+  expires_in: number;
+  refresh_token?: string | null;
+  refresh_expires_in?: number | null;
+};
+
+export async function loginAccount(body: { email: string; password: string }): Promise<LoginTokensResponse> {
+  const res = await fetch(`${base()}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: body.email.trim(),
+      password: body.password,
+    }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json() as Promise<LoginTokensResponse>;
+}
+
+export type MeResponse = {
+  id: string;
+  email: string;
+  email_verified: boolean;
+};
+
+export async function fetchAuthMe(accessToken: string): Promise<MeResponse> {
+  const res = await fetch(`${base()}/auth/me`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json() as Promise<MeResponse>;
+}

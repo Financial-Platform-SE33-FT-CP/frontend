@@ -26,7 +26,7 @@ type TenantTeamPanelProps = {
 export function TenantTeamPanel({ tenantId, myRole }: TenantTeamPanelProps) {
   const [members, setMembers] = useState<TenantMemberDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newUserId, setNewUserId] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
   const [newRole, setNewRole] = useState<TenantApiRole>("viewer");
 
   const load = useCallback(async () => {
@@ -51,10 +51,11 @@ export function TenantTeamPanel({ tenantId, myRole }: TenantTeamPanelProps) {
   const selfId = getWorkspaceUserId();
 
   async function onAdd() {
-    if (!newUserId.trim()) return;
+    const em = inviteEmail.trim();
+    if (!em) return;
     try {
-      await addTenantMember(tenantId, newUserId.trim(), newRole);
-      setNewUserId("");
+      await addTenantMember(tenantId, em, newRole);
+      setInviteEmail("");
       toast.success("Member invited");
       await load();
     } catch (e) {
@@ -79,25 +80,23 @@ export function TenantTeamPanel({ tenantId, myRole }: TenantTeamPanelProps) {
   return (
     <div className="space-y-4 rounded-lg border p-4">
       <div>
-        <h2 className="text-lg font-semibold">Team & roles (US-3)</h2>
-        <p className="text-sm text-muted-foreground">
-          Roles are stored per tenant-user. API uses{" "}
-          <code className="rounded bg-muted px-1">admin</code> /{" "}
-          <code className="rounded bg-muted px-1">manager</code> /{" "}
-          <code className="rounded bg-muted px-1">viewer</code> — mapped to Owner / Accountant /
-          Viewer in the UI.
-        </p>
+        <h2 className="text-lg font-semibold">Team & roles</h2>
       </div>
 
       {manage && (
         <div className="flex flex-col gap-2 rounded-md bg-muted/40 p-3 sm:flex-row sm:items-end">
           <div className="flex-1 space-y-1">
-            <label className="text-xs font-medium">User ID (UUID)</label>
+            <label htmlFor="invite-email" className="text-xs font-medium">
+              Email
+            </label>
             <Input
-              className="font-mono text-xs"
-              placeholder="Target user UUID"
-              value={newUserId}
-              onChange={(e) => setNewUserId(e.target.value)}
+              id="invite-email"
+              type="email"
+              autoComplete="email"
+              className="text-sm"
+              placeholder="colleague@company.com"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
             />
           </div>
           <div className="w-full space-y-1 sm:w-40">
@@ -131,7 +130,7 @@ export function TenantTeamPanel({ tenantId, myRole }: TenantTeamPanelProps) {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b text-muted-foreground">
-              <th className="py-2 pr-2">User ID</th>
+              <th className="py-2 pr-2">Member</th>
               <th className="py-2 pr-2">Role</th>
               {manage && <th className="py-2">Actions</th>}
             </tr>
@@ -152,7 +151,7 @@ export function TenantTeamPanel({ tenantId, myRole }: TenantTeamPanelProps) {
             ) : (
               members.map((m) => (
                 <tr key={m.id} className="border-b border-border/60">
-                  <td className="py-2 pr-2 font-mono text-xs">{m.user_id}</td>
+                  <td className="py-2 pr-2 text-sm">{m.email}</td>
                   <td className="py-2 pr-2">
                     {apiRoleLabel(m.role)}
                     <span className="ml-1 text-xs text-muted-foreground">({m.role})</span>

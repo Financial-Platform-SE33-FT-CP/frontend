@@ -13,7 +13,7 @@ export default function ChartOfAccountsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Chart of Accounts</h1>
         <p className="mt-2 text-muted-foreground">
-          US-3: <strong>Viewer</strong> is read-only here; <strong>Owner</strong> and{" "}
+          <strong>Viewer</strong> is read-only here; <strong>Owner</strong> and{" "}
           <strong>Accountant</strong> can manage accounts when the COA service is connected.
         </p>
       </div>
@@ -32,7 +32,7 @@ export default function ChartOfAccountsPage() {
             fallback={
               <p>
                 Read-only mode: your role is <strong>Viewer</strong>. Posting and edits are
-                disabled (US-3).
+                disabled.
               </p>
             }
           >

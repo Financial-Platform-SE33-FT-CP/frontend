@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { WorkspaceDevBar } from "@/components/tenant/workspace-dev-bar";
 
 const sidebarLinks = [
   { href: "/tenants", label: "Tenants" },
@@ -43,8 +42,7 @@ export default function DashboardLayout({
       </aside>
 
       <div className="flex flex-1 flex-col">
-        <header className="flex min-h-14 flex-col gap-2 border-b px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <WorkspaceDevBar />
+        <header className="flex min-h-14 items-center justify-end border-b px-6 py-3">
           <span className="text-sm text-muted-foreground">Dashboard</span>
         </header>
         <main className="flex-1 p-6">{children}</main>
