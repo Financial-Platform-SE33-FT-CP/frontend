@@ -1,9 +1,12 @@
 import { api } from "./api";
 import { clearSession, getRefreshToken, setRefreshToken, setToken } from "./auth";
+import { clearWorkspaceSession } from "./workspace-session";
 
 function authBaseUrl(): string {
   const raw =
-    process.env.NEXT_PUBLIC_AUTH_URL ?? "http://localhost:8001";
+    process.env.NEXT_PUBLIC_AUTH_SERVICE_URL ??
+    process.env.NEXT_PUBLIC_AUTH_URL ??
+    "http://localhost:8001";
   return raw.replace(/\/$/, "");
 }
 
@@ -35,6 +38,13 @@ export type TokenResponse = {
 
 export type MessageResponse = {
   message: string;
+};
+
+export type MeResponse = {
+  id: string;
+  email: string;
+  email_verified?: boolean;
+  is_email_verified?: boolean;
 };
 
 export async function registerUser(payload: {
@@ -70,6 +80,11 @@ export async function loginUser(payload: {
     setRefreshToken(data.refresh_token);
   }
   return data;
+}
+
+/** Requires access token already stored (e.g. after `loginUser`). */
+export async function fetchAuthMe(): Promise<MeResponse> {
+  return api.get<MeResponse>("/auth/me", authOpts());
 }
 
 export async function verifyEmailCode(payload: {
@@ -109,4 +124,5 @@ export async function logoutUser(): Promise<void> {
     }
   }
   clearSession();
+  clearWorkspaceSession();
 }

@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatApiError } from "@/lib/api";
-import { loginUser } from "@/lib/auth-api";
+import { fetchAuthMe, loginUser } from "@/lib/auth-api";
 import { isAuthenticated } from "@/lib/auth";
+import { setWorkspaceUserId } from "@/lib/workspace-session";
 
 function LoginForm() {
   const router = useRouter();
@@ -33,6 +34,8 @@ function LoginForm() {
     setPending(true);
     try {
       await loginUser({ email, password });
+      const me = await fetchAuthMe();
+      setWorkspaceUserId(me.id);
       router.push("/tenants");
     } catch (err) {
       setError(formatApiError(err));
@@ -78,7 +81,7 @@ function LoginForm() {
               {error}
             </div>
           ) : null}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={(ev) => void handleSubmit(ev)} className="space-y-4">
             <div className="space-y-2">
               <label
                 htmlFor="email"

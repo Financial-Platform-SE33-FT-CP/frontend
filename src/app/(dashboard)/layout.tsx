@@ -9,6 +9,7 @@ import { logoutUser } from "@/lib/auth-api";
 
 const sidebarLinks = [
   { href: "/tenants", label: "Tenants" },
+  { href: "/tenants/setup", label: "New company" },
   { href: "/coa", label: "Chart of Accounts" },
 ];
 
@@ -34,7 +35,6 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
       <aside className="flex w-64 flex-col border-r bg-muted/40">
         <div className="flex h-14 items-center border-b px-6 font-semibold">
           <Link href="/tenants">Accounting Platform</Link>
@@ -57,7 +57,6 @@ export default function DashboardLayout({
         </nav>
       </aside>
 
-      {/* Main content */}
       <div className="flex flex-1 flex-col">
         <header className="flex h-14 items-center justify-end border-b px-6">
           <div className="flex items-center gap-3">

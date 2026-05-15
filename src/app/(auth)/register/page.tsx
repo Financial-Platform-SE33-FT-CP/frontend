@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatApiError } from "@/lib/api";
-import { loginUser, registerUser } from "@/lib/auth-api";
+import { fetchAuthMe, loginUser, registerUser } from "@/lib/auth-api";
 import { isAuthenticated } from "@/lib/auth";
+import { setWorkspaceUserId } from "@/lib/workspace-session";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -38,6 +39,8 @@ export default function RegisterPage() {
 
       if (res.user.is_email_verified) {
         await loginUser({ email, password });
+        const me = await fetchAuthMe();
+        setWorkspaceUserId(me.id);
         router.push("/tenants");
         return;
       }
@@ -75,7 +78,7 @@ export default function RegisterPage() {
               {error}
             </div>
           ) : null}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={(ev) => void handleSubmit(ev)} className="space-y-4">
             <div className="space-y-2">
               <label
                 htmlFor="name"
@@ -129,6 +132,7 @@ export default function RegisterPage() {
                 minLength={8}
                 disabled={pending}
               />
+              <p className="text-xs text-muted-foreground">At least 8 characters (same as API).</p>
             </div>
             <Button type="submit" className="w-full" disabled={pending}>
               {pending ? "Creating account…" : "Create account"}
