@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { logoutUser } from "@/lib/auth-api";
+import { isAuthenticated } from "@/lib/auth";
 
 const sidebarLinks = [
   { href: "/tenants", label: "Tenants" },
   { href: "/tenants/setup", label: "New company" },
   { href: "/coa", label: "Chart of Accounts" },
+  { href: "/opening-balance", label: "Opening balance" },
 ];
 
 export default function DashboardLayout({
@@ -21,6 +23,12 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.replace("/login");
+    }
+  }, [router]);
 
   async function handleLogout() {
     setLoggingOut(true);

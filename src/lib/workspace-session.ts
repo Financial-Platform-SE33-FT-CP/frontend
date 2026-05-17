@@ -14,7 +14,9 @@ function notifyWorkspaceChange(): void {
 }
 
 export function setWorkspaceUserId(id: string): void {
-  window.localStorage.setItem(USER_ID, id.trim());
+  const next = id.trim();
+  if (window.localStorage.getItem(USER_ID) === next) return;
+  window.localStorage.setItem(USER_ID, next);
   notifyWorkspaceChange();
 }
 
@@ -24,6 +26,9 @@ export function getActiveTenantId(): string | null {
 }
 
 export function setActiveTenant(id: string, role: string): void {
+  const prevId = window.localStorage.getItem(TENANT_ID);
+  const prevRole = window.localStorage.getItem(TENANT_ROLE);
+  if (prevId === id && prevRole === role) return;
   window.localStorage.setItem(TENANT_ID, id);
   window.localStorage.setItem(TENANT_ROLE, role);
   notifyWorkspaceChange();
@@ -35,6 +40,12 @@ export function getActiveTenantRole(): string | null {
 }
 
 export function clearActiveTenant(): void {
+  if (
+    window.localStorage.getItem(TENANT_ID) == null &&
+    window.localStorage.getItem(TENANT_ROLE) == null
+  ) {
+    return;
+  }
   window.localStorage.removeItem(TENANT_ID);
   window.localStorage.removeItem(TENANT_ROLE);
   notifyWorkspaceChange();
@@ -43,6 +54,11 @@ export function clearActiveTenant(): void {
 /** Clears workspace user + active tenant (call on full logout). */
 export function clearWorkspaceSession(): void {
   if (typeof window === "undefined") return;
+  const hadUser = window.localStorage.getItem(USER_ID) != null;
+  const hadTenant =
+    window.localStorage.getItem(TENANT_ID) != null ||
+    window.localStorage.getItem(TENANT_ROLE) != null;
+  if (!hadUser && !hadTenant) return;
   window.localStorage.removeItem(USER_ID);
   window.localStorage.removeItem(TENANT_ID);
   window.localStorage.removeItem(TENANT_ROLE);
