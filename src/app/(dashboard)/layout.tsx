@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const sidebarLinks = [
   { href: "/tenants", label: "Tenants" },
   { href: "/coa", label: "Chart of Accounts" },
+  { href: "/journal-entries", label: "Journal Entries" },
 ];
 
 export default function DashboardLayout({
