@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartOfAccountsEditor } from "@/components/coa/chart-of-accounts-editor";
 import { RoleGate } from "@/components/tenant/role-gate";
 import { useWorkspaceRole } from "@/hooks/use-workspace-role";
 import { canEditAccountingData } from "@/lib/tenant-roles";
@@ -26,19 +27,7 @@ export default function ChartOfAccountsPage() {
           </div>
         }
       >
-        <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-          <RoleGate
-            allow={canEdit}
-            fallback={
-              <p>
-                Read-only mode: your role is <strong>Viewer</strong>. Posting and edits are
-                disabled.
-              </p>
-            }
-          >
-            <p>Chart of Accounts editor will appear here (COA service integration).</p>
-          </RoleGate>
-        </div>
+        <ChartOfAccountsEditor canEdit={canEdit}/>
       </RoleGate>
     </div>
   );
