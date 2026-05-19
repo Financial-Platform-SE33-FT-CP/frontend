@@ -111,3 +111,72 @@ export async function importOpeningBalanceCsv(
     ledgerOpts(),
   );
 }
+
+// --- US-6: Ledger & Trial Balance read views ---
+
+export type AccountLedgerTransaction = {
+  journal_line_id: string;
+  journal_entry_id: string;
+  entry_date: string;
+  reference: string;
+  source_type: string | null;
+  entry_description: string | null;
+  line_description: string | null;
+  debit_amount: string;
+  credit_amount: string;
+  running_balance: string;
+};
+
+export type AccountLedgerView = {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: string;
+  from_date: string | null;
+  to_date: string | null;
+  opening_balance: string;
+  closing_balance: string;
+  transactions: AccountLedgerTransaction[];
+};
+
+export type TrialBalanceAccount = {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: string;
+  total_debit: string;
+  total_credit: string;
+  debit_balance: string;
+  credit_balance: string;
+};
+
+export type TrialBalance = {
+  as_of_date: string | null;
+  accounts: TrialBalanceAccount[];
+  total_debit_balance: string;
+  total_credit_balance: string;
+  is_balanced: boolean;
+  imbalance: string;
+};
+
+export async function getTrialBalance(asOfDate?: string): Promise<TrialBalance> {
+  const params: Record<string, string> = {};
+  if (asOfDate) params.as_of_date = asOfDate;
+  return api.get<TrialBalance>("/ledger/trial-balance", {
+    ...ledgerOpts(),
+    params: Object.keys(params).length ? params : undefined,
+  });
+}
+
+export async function getAccountLedger(
+  accountId: string,
+  options?: { fromDate?: string; toDate?: string },
+): Promise<AccountLedgerView> {
+  const params: Record<string, string> = {};
+  if (options?.fromDate) params.from_date = options.fromDate;
+  if (options?.toDate) params.to_date = options.toDate;
+  return api.get<AccountLedgerView>(`/ledger/accounts/${accountId}/transactions`, {
+    ...ledgerOpts(),
+    params: Object.keys(params).length ? params : undefined,
+  });
+}

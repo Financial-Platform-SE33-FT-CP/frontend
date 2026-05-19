@@ -14,6 +14,7 @@ const sidebarLinks = [
   { href: "/coa", label: "Chart of Accounts" },
   { href: "/opening-balance", label: "Opening balance" },
   { href: "/journal-entries", label: "Journal Entries" },
+  { href: "/ledger", label: "General ledger" },
 ];
 
 export default function DashboardLayout({

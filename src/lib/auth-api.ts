@@ -39,6 +39,12 @@ export type MessageResponse = {
   message: string;
 };
 
+export type ResendVerificationResponse = {
+  message: string;
+  /** Present in non-production when a new code was emailed. */
+  verification_code?: string | null;
+};
+
 export type MeResponse = {
   id: string;
   email: string;
@@ -100,8 +106,8 @@ export async function verifyEmailCode(payload: {
   );
 }
 
-export async function resendVerificationCode(email: string): Promise<MessageResponse> {
-  return api.post<MessageResponse>(
+export async function resendVerificationCode(email: string): Promise<ResendVerificationResponse> {
+  return api.post<ResendVerificationResponse>(
     "/auth/resend-verification-code",
     { email: email.trim() },
     authOpts(),

@@ -122,7 +122,7 @@ export default function OpeningBalancePage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Opening balance import</h1>
         <p className="mt-2 text-muted-foreground">
-          US-7: Upload a CSV trial balance (with optional AR/AP aging). The system creates one
+          Upload a CSV trial balance (with optional AR/AP aging). The system creates one
           opening journal entry when debits equal credits.
         </p>
       </div>
