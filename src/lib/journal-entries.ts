@@ -48,7 +48,7 @@ function ledgerUrl(path: string): string {
 
 async function ledgerRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-  const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenant_id") : null;
+  const tenantId = typeof window !== "undefined" ? localStorage.getItem("acct_workspace_tenant_id") : null;
   const headers: Record<string, string> = {
     ...(init?.headers as Record<string, string> | undefined),
   };
