@@ -13,7 +13,6 @@ const sidebarLinks = [
   { href: "/tenants/setup", label: "New company" },
   { href: "/coa", label: "Chart of Accounts" },
   { href: "/opening-balance", label: "Opening balance" },
-  { href: "/journal-entries", label: "Journal Entries" },
   { href: "/ledger", label: "General ledger" },
 ];
 
