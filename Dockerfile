@@ -1,19 +1,26 @@
 FROM node:22-alpine AS base
 
-# Install dependencies only when needed
-FROM base AS deps
+# ── Dev stage: just dependencies, nothing else ──
+FROM base AS dev
 WORKDIR /app
 COPY package.json ./
+RUN npm install
+CMD ["sh", "-c", "npm run dev"]
+
+# ── Production deps ──
+FROM base AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
 RUN npm ci
 
-# Build stage
+# ── Build stage ──
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-# Run stage
+# ── Run stage ──
 FROM base AS runner
 WORKDIR /app
 

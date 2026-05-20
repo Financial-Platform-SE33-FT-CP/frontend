@@ -1,69 +1,160 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { formatApiError } from "@/lib/api";
+import { fetchAuthMe, loginUser } from "@/lib/auth-api";
+import { isAuthenticated } from "@/lib/auth";
+import { setWorkspaceUserId } from "@/lib/workspace-session";
 
-export default function LoginPage() {
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const postRegisterHint = searchParams.get("registered") === "1";
+  const verifiedHint = searchParams.get("verified") === "1";
+
+  useEffect(() => {
+    if (isAuthenticated()) {
+      router.replace("/tenants");
+    }
+  }, [router]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: implement authentication
+    setError(null);
+    setPending(true);
+    try {
+      await loginUser({ email, password });
+      const me = await fetchAuthMe();
+      setWorkspaceUserId(me.id);
+      router.push("/tenants");
+    } catch (err) {
+      setError(formatApiError(err));
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-10">
+      <Card className="w-full max-w-md shadow-sm">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl">Sign in</CardTitle>
+          <CardTitle className="text-2xl font-semibold tracking-tight">
+            Sign in
+          </CardTitle>
           <CardDescription>
-            Enter your email and password to access your account
+            Use your work email and password to open your accounting workspace.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="space-y-4">
+          {verifiedHint ? (
+            <div
+              role="status"
+              className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-foreground"
+            >
+              Email verified. You can sign in now.
+            </div>
+          ) : null}
+          {postRegisterHint ? (
+            <div
+              role="status"
+              className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-foreground"
+            >
+              Account created. If email verification is enabled for this environment,
+              check your inbox before signing in.
+            </div>
+          ) : null}
+          {error ? (
+            <div
+              role="alert"
+              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              {error}
+            </div>
+          ) : null}
+          <form onSubmit={(ev) => void handleSubmit(ev)} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <label
+                htmlFor="email"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
                 Email
               </label>
               <Input
                 id="email"
                 type="email"
-                placeholder="name@example.com"
+                autoComplete="email"
+                placeholder="you@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={pending}
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <label
+                htmlFor="password"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
                 Password
               </label>
               <Input
                 id="password"
                 type="password"
+                autoComplete="current-password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={pending}
               />
             </div>
-            <Button type="submit" className="w-full">
-              Sign in
+            <Button type="submit" className="w-full" disabled={pending}>
+              {pending ? "Signing in…" : "Sign in"}
             </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
+          <p className="text-center text-sm text-muted-foreground">
+            <Link
+              href={email.trim() ? `/verify-email?email=${encodeURIComponent(email.trim())}` : "/verify-email"}
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Enter email verification code
+            </Link>
+          </p>
+          <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link href="/register" className="font-medium text-primary underline-offset-4 hover:underline">
-              Sign up
+            <Link
+              href="/register"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Create one
             </Link>
           </p>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+          Loading…
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

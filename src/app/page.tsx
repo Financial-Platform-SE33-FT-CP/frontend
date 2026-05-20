@@ -10,16 +10,16 @@ export default function HomePage() {
         <p className="max-w-md text-muted-foreground">
           Multi-tenant accounting and financial management system.
         </p>
-        <div className="flex gap-4">
+        <div className="relative z-10 flex flex-wrap justify-center gap-4">
           <Link
             href="/login"
-            className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+            className="inline-flex h-10 min-w-[8rem] cursor-pointer items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
           >
             Sign in
           </Link>
           <Link
             href="/register"
-            className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="inline-flex h-10 min-w-[8rem] cursor-pointer items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             Create account
           </Link>
