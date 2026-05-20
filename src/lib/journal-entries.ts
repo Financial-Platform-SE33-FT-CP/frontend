@@ -42,7 +42,11 @@ export interface JournalEntryListResponse {
 }
 
 function ledgerUrl(path: string): string {
-  const base = (process.env.NEXT_PUBLIC_LEDGER_URL ?? "http://localhost:8004").trim();
+  const base = (
+    process.env.NEXT_PUBLIC_LEDGER_SERVICE_URL ??
+    process.env.NEXT_PUBLIC_LEDGER_URL ??
+    "http://localhost:8003"
+  ).trim();
   return `${base}${path}`;
 }
 
