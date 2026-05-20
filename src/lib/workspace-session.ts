@@ -2,6 +2,9 @@ const USER_ID = "acct_workspace_user_id";
 const TENANT_ID = "acct_workspace_tenant_id";
 const TENANT_ROLE = "acct_workspace_tenant_role";
 
+// This key is used by src/lib/api.ts to populate X-Tenant-ID.
+const API_TENANT_ID = "tenant_id";
+
 export function getWorkspaceUserId(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(USER_ID);
@@ -22,7 +25,8 @@ export function setWorkspaceUserId(id: string): void {
 
 export function getActiveTenantId(): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(TENANT_ID);
+  return window.localStorage.getItem(TENANT_ID) ??
+  window.localStorage.getItem(API_TENANT_ID);
 }
 
 export function setActiveTenant(id: string, role: string): void {
@@ -31,6 +35,7 @@ export function setActiveTenant(id: string, role: string): void {
   if (prevId === id && prevRole === role) return;
   window.localStorage.setItem(TENANT_ID, id);
   window.localStorage.setItem(TENANT_ROLE, role);
+  window.localStorage.setItem(API_TENANT_ID,id);
   notifyWorkspaceChange();
 }
 
@@ -48,6 +53,7 @@ export function clearActiveTenant(): void {
   }
   window.localStorage.removeItem(TENANT_ID);
   window.localStorage.removeItem(TENANT_ROLE);
+  window.localStorage.removeItem(API_TENANT_ID);
   notifyWorkspaceChange();
 }
 
@@ -62,5 +68,6 @@ export function clearWorkspaceSession(): void {
   window.localStorage.removeItem(USER_ID);
   window.localStorage.removeItem(TENANT_ID);
   window.localStorage.removeItem(TENANT_ROLE);
+  window.localStorage.removeItem(API_TENANT_ID);
   notifyWorkspaceChange();
 }
