@@ -1,9 +1,20 @@
 import { api } from "@/lib/api";
+import { setTenantId } from "./auth";
+import { getActiveTenantId } from "./workspace-session";
 
 const COA_BASE_URL =
+  process.env.NEXT_PUBLIC_COA_SERVICE_URL ??
   process.env.NEXT_PUBLIC_COA_API_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:8003";
+
+function coaOpts() {
+  const tenantId = getActiveTenantId();
+  if (tenantId) {
+    setTenantId(tenantId);
+  }
+  return { baseUrl: COA_BASE_URL };
+}
 
 export type AccountDto = {
   id: string;
@@ -18,6 +29,8 @@ export type AccountDto = {
   created_at: string;
   updated_at: string;
 };
+
+export type CoaAccount = AccountDto;
 
 export type AccountTreeNodeDto = {
   id: string;
@@ -42,37 +55,37 @@ export type UpdateAccountPayload = {
 };
 
 export function listAccounts() {
-  return api.get<AccountDto[]>("/coa/accounts", {
-    baseUrl: COA_BASE_URL,
-  });
+  return api.get<AccountDto[]>("/coa/accounts", coaOpts());
+}
+
+export function listCoaAccounts(): Promise<CoaAccount[]> {
+  return listAccounts().then((accounts) =>
+    [...accounts].sort((a, b) =>
+      a.code.localeCompare(b.code, undefined, { numeric: true }),
+    ),
+  );
 }
 
 export function getAccountTree() {
-  return api.get<AccountTreeNodeDto[]>("/coa/accounts/tree", {
-    baseUrl: COA_BASE_URL,
-  });
+  return api.get<AccountTreeNodeDto[]>("/coa/accounts/tree", coaOpts());
 }
 
 export function seedDefaultAccounts() {
-  return api.post<AccountDto[]>("/coa/accounts/seed", undefined, {
-    baseUrl: COA_BASE_URL,
-  });
+  return api.post<AccountDto[]>("/coa/accounts/seed", undefined, coaOpts());
 }
 
 export function createAccount(payload: CreateAccountPayload) {
-  return api.post<AccountDto>("/coa/accounts", payload, {
-    baseUrl: COA_BASE_URL,
-  });
+  return api.post<AccountDto>("/coa/accounts", payload, coaOpts());
 }
 
 export function updateAccount(id: string, payload: UpdateAccountPayload) {
-  return api.patch<AccountDto>(`/coa/accounts/${id}`, payload, {
-    baseUrl: COA_BASE_URL,
-  });
+  return api.patch<AccountDto>(`/coa/accounts/${id}`, payload, coaOpts());
 }
 
 export function deactivateAccount(id: string) {
-  return api.patch<AccountDto>(`/coa/accounts/${id}/deactivate`, undefined, {
-    baseUrl: COA_BASE_URL,
-  });
+  return api.patch<AccountDto>(
+    `/coa/accounts/${id}/deactivate`,
+    undefined,
+    coaOpts(),
+  );
 }

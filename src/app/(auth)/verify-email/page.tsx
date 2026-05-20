@@ -83,7 +83,14 @@ function VerifyEmailForm() {
     setResendPending(true);
     try {
       const res = await resendVerificationCode(email);
-      setInfo(res.message);
+      const em = email.trim().toLowerCase();
+      if (res.verification_code) {
+        sessionStorage.setItem(`${DEV_CODE_KEY_PREFIX}${em}`, res.verification_code);
+        setDevHint(`Local dev: new code ${res.verification_code} (also check your inbox).`);
+      }
+      setInfo(
+        `${res.message} If nothing arrives, wait 60s before resending (rate limit) and check spam.`,
+      );
       setCooldown(60);
     } catch (err) {
       setError(formatApiError(err));

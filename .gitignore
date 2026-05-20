@@ -27,3 +27,10 @@ coverage/
 *.tsbuildinfo
 next-env.d.ts
 package-lock.json
+
+# others
+*.docx
+*.pdf
+*.xlsx
+*.zip
+*.tar.gz
