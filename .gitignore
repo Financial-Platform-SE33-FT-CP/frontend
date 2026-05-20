@@ -23,21 +23,9 @@ npm-debug.log*
 # coverage
 coverage/
 
-<<<<<<< HEAD
-# generated
-*.tsbuildinfo
-next-env.d.ts
-package-lock.json
-
-=======
->>>>>>> 2fb89c2 (add feat/US6_Ledger_Trial_Balance_View frontend')
 # others
 *.docx
 *.pdf
 *.xlsx
 *.zip
-<<<<<<< HEAD
 *.tar.gz
-=======
-*.tar.gz
->>>>>>> 2fb89c2 (add feat/US6_Ledger_Trial_Balance_View frontend')
