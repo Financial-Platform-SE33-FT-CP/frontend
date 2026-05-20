@@ -2,9 +2,11 @@ import { api, formatApiErrorBody } from "./api";
 import { getToken, setTenantId } from "./auth";
 import { getActiveTenantId } from "./workspace-session";
 
+// Production (behind nginx): leave unset → relative path /api/ledger, calls go through proxy.
+// Local dev: set NEXT_PUBLIC_LEDGER_SERVICE_URL=http://localhost:8003 in .env.local
 const base = () =>
   (
-    process.env.NEXT_PUBLIC_LEDGER_SERVICE_URL ?? "http://127.0.0.1:8003"
+    process.env.NEXT_PUBLIC_LEDGER_SERVICE_URL ?? "/api/ledger"
   ).replace(/\/$/, "");
 
 function ledgerOpts() {

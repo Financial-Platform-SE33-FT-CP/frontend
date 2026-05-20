@@ -1,8 +1,10 @@
 import type { TenantApiRole } from "@/lib/tenant-roles";
 import { getWorkspaceUserId } from "@/lib/workspace-session";
 
+// Production (behind nginx): leave unset → relative path /api/tenants, calls go through proxy.
+// Local dev: set NEXT_PUBLIC_TENANT_SERVICE_URL=http://localhost:8002 in .env.local
 const base = () =>
-  (process.env.NEXT_PUBLIC_TENANT_SERVICE_URL ?? "http://localhost:8002").replace(/\/$/, "");
+  (process.env.NEXT_PUBLIC_TENANT_SERVICE_URL ?? "/api/tenants").replace(/\/$/, "");
 
 function headers(json = false): HeadersInit {
   const h: Record<string, string> = {};

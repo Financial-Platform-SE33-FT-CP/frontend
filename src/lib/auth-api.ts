@@ -3,10 +3,12 @@ import { clearSession, getRefreshToken, setRefreshToken, setToken } from "./auth
 import { clearWorkspaceSession } from "./workspace-session";
 
 function authBaseUrl(): string {
+  // Production (behind nginx): leave unset → relative path /api/auth, calls go through proxy.
+  // Local dev: set NEXT_PUBLIC_AUTH_SERVICE_URL=http://localhost:8001 in .env.local
   const raw =
     process.env.NEXT_PUBLIC_AUTH_SERVICE_URL ??
     process.env.NEXT_PUBLIC_AUTH_URL ??
-    "http://localhost:8001";
+    "/api/auth";
   return raw.replace(/\/$/, "");
 }
 

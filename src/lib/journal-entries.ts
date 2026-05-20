@@ -41,11 +41,13 @@ export interface JournalEntryListResponse {
   limit: number;
 }
 
+// Production (behind nginx): leave unset → relative path /api/ledger.
+// Local dev: set NEXT_PUBLIC_LEDGER_SERVICE_URL=http://localhost:8003 in .env.local
 function ledgerUrl(path: string): string {
   const base = (
     process.env.NEXT_PUBLIC_LEDGER_SERVICE_URL ??
     process.env.NEXT_PUBLIC_LEDGER_URL ??
-    "http://localhost:8003"
+    "/api/ledger"
   ).trim();
   return `${base}${path}`;
 }
