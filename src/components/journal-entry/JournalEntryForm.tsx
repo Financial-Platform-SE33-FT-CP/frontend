@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { AccountPicker } from "@/components/ui/account-picker";
 import {
   createJournalEntry,
   type CreateJournalEntryLine,
@@ -75,6 +76,12 @@ export default function JournalEntryForm({ onCreated }: { onCreated: () => void 
 
     if (filled.length < 2) {
       toast.error("At least 2 lines with amounts are required.");
+      return;
+    }
+
+    const missingAccount = filled.find((l) => !l.account_id.trim());
+    if (missingAccount) {
+      toast.error("Each line must have an account selected.");
       return;
     }
 
@@ -175,7 +182,7 @@ export default function JournalEntryForm({ onCreated }: { onCreated: () => void 
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
-                    <th className="pb-2 pr-2 font-medium">Account ID</th>
+                    <th className="pb-2 pr-2 font-medium">Account</th>
                     <th className="pb-2 px-2 font-medium w-28">Debit</th>
                     <th className="pb-2 px-2 font-medium w-28">Credit</th>
                     <th className="pb-2 pl-2 font-medium">Description</th>
@@ -185,11 +192,10 @@ export default function JournalEntryForm({ onCreated }: { onCreated: () => void 
                 <tbody>
                   {lines.map((line) => (
                     <tr key={line.key} className="border-b border-muted">
-                      <td className="py-2 pr-2">
-                        <Input
-                          placeholder="Account ID"
+                      <td className="py-2 pr-2 min-w-[240px]">
+                        <AccountPicker
                           value={line.account_id}
-                          onChange={(e) => updateLine(line.key, "account_id", e.target.value)}
+                          onChange={(accountId) => updateLine(line.key, "account_id", accountId)}
                         />
                       </td>
                       <td className="py-2 px-2">
