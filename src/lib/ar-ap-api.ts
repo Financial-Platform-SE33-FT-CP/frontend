@@ -166,3 +166,121 @@ export function isDraftInvoice(invoice: Invoice): boolean {
 export function isPostedInvoice(invoice: Invoice): boolean {
   return invoice.status !== "draft";
 }
+
+// ── US-9: customer payments ─────────────────────────────────────────────────
+
+export type PaymentMethod =
+  | "bank_transfer"
+  | "cash"
+  | "cheque"
+  | "card"
+  | "other";
+
+export type Payment = {
+  id: string;
+  tenant_id: string | null;
+  invoice_id: string;
+  customer_id: string | null;
+  amount: string | number;
+  payment_date: string | null;
+  payment_method: PaymentMethod | string;
+  reference: string | null;
+  deposit_account_id: string | null;
+  journal_entry_id: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type InvoiceSettlement = {
+  invoice_id: string;
+  invoice_total: string | number;
+  amount_paid: string | number;
+  outstanding: string | number;
+};
+
+export type CreatePaymentRequest = {
+  payment_date: string;
+  amount: string;
+  payment_method: PaymentMethod;
+  reference?: string | null;
+  deposit_account_id: string;
+  idempotency_key?: string | null;
+};
+
+export type ListPaymentsParams = {
+  invoice_id?: string;
+  customer_id?: string;
+  payment_method?: PaymentMethod;
+  date_from?: string;
+  date_to?: string;
+};
+
+/** Invoice statuses that accept new customer payments (US-9). */
+export function canRecordPaymentOnInvoice(invoice: Invoice): boolean {
+  return (
+    invoice.status === "issued" ||
+    invoice.status === "partial" ||
+    invoice.status === "overdue"
+  );
+}
+
+export function listInvoicePayments(invoiceId: string) {
+  return api.get<Payment[]>(`/ar-ap/invoices/${invoiceId}/payments`, arApOpts());
+}
+
+export function getInvoiceSettlement(invoiceId: string) {
+  return api.get<InvoiceSettlement>(
+    `/ar-ap/invoices/${invoiceId}/settlement`,
+    arApOpts(),
+  );
+}
+
+export function recordPayment(
+  invoiceId: string,
+  payload: CreatePaymentRequest,
+  options?: { idempotencyKey?: string },
+) {
+  const headers: Record<string, string> = {};
+  if (options?.idempotencyKey) {
+    headers["Idempotency-Key"] = options.idempotencyKey;
+  }
+  return api.post<Payment>(
+    `/ar-ap/invoices/${invoiceId}/payments`,
+    payload,
+    { ...arApOpts(), headers },
+  );
+}
+
+export function listPayments(params?: ListPaymentsParams) {
+  const query: Record<string, string> = {};
+  if (params?.invoice_id) query.invoice_id = params.invoice_id;
+  if (params?.customer_id) query.customer_id = params.customer_id;
+  if (params?.payment_method) query.payment_method = params.payment_method;
+  if (params?.date_from) query.date_from = params.date_from;
+  if (params?.date_to) query.date_to = params.date_to;
+  return api.get<Payment[]>("/ar-ap/payments", {
+    ...arApOpts(),
+    params: Object.keys(query).length ? query : undefined,
+  });
+}
+
+export function getPayment(paymentId: string) {
+  return api.get<Payment>(`/ar-ap/payments/${paymentId}`, arApOpts());
+}
+
+export const PAYMENT_METHOD_OPTIONS: {
+  value: PaymentMethod;
+  label: string;
+}[] = [
+  { value: "bank_transfer", label: "Bank transfer" },
+  { value: "cash", label: "Cash" },
+  { value: "cheque", label: "Cheque" },
+  { value: "card", label: "Card" },
+  { value: "other", label: "Other" },
+];
+
+export function paymentMethodLabel(method: string): string {
+  return (
+    PAYMENT_METHOD_OPTIONS.find((o) => o.value === method)?.label ?? method
+  );
+}

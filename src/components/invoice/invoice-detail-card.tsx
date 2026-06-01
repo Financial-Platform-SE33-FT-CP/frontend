@@ -1,26 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoice/invoice-status-badge";
 import { ConfirmDialog } from "@/components/invoice/confirm-dialog";
+import { PaymentHistoryTable } from "@/components/payment/payment-history-table";
+import { PaymentSummaryCard } from "@/components/payment/payment-summary-card";
+import { RecordPaymentButton } from "@/components/payment/record-payment-button";
+import { RecordPaymentDialog } from "@/components/payment/record-payment-dialog";
 import {
+  canRecordPaymentOnInvoice,
+  getInvoiceSettlement,
   issueInvoice,
   isDraftInvoice,
   isPostedInvoice,
   INVOICE_PDF_AVAILABLE,
   downloadInvoicePdf,
+  listInvoicePayments,
   type Invoice,
   type Customer,
+  type InvoiceSettlement,
+  type Payment,
 } from "@/lib/ar-ap-api";
 import { listCoaAccounts, type CoaAccount } from "@/lib/coa-api";
 import { formatApiError } from "@/lib/api";
 import { formatMoney } from "@/lib/format-money";
-import { useEffect } from "react";
+import { computePaymentSummary } from "@/lib/payment-calc";
 
 type Props = {
   invoice: Invoice;
@@ -59,15 +68,60 @@ export default function InvoiceDetailCard({
   const [issueOpen, setIssueOpen] = useState(false);
   const [issuing, setIssuing] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [settlement, setSettlement] = useState<InvoiceSettlement | null>(null);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   const draft = isDraftInvoice(invoice);
   const posted = isPostedInvoice(invoice);
+  const paid = invoice.status === "paid";
+  const showPaymentSection = posted;
+
+  const paymentSummary = useMemo(
+    () => computePaymentSummary(invoice.total, payments, settlement),
+    [invoice.total, payments, settlement],
+  );
+
+  const loadPayments = useCallback(async () => {
+    if (!posted) {
+      setPayments([]);
+      setSettlement(null);
+      return;
+    }
+    setPaymentsLoading(true);
+    try {
+      const [payList, settle] = await Promise.all([
+        listInvoicePayments(invoice.id),
+        getInvoiceSettlement(invoice.id),
+      ]);
+      setPayments(payList);
+      setSettlement(settle);
+    } catch (err) {
+      toast.error(formatApiError(err));
+      setPayments([]);
+      setSettlement(null);
+    } finally {
+      setPaymentsLoading(false);
+    }
+  }, [invoice.id, posted]);
 
   useEffect(() => {
     listCoaAccounts()
       .then(setAccounts)
       .catch(() => setAccounts([]));
   }, []);
+
+  useEffect(() => {
+    void loadPayments();
+  }, [loadPayments]);
+
+  async function handlePaymentRecorded() {
+    setPaymentDialogOpen(false);
+    toast.success("Payment recorded successfully.");
+    onUpdated?.();
+    await loadPayments();
+  }
 
   const accountLabel = (id: string) => {
     const a = accounts.find((x) => x.id === id);
@@ -117,16 +171,25 @@ export default function InvoiceDetailCard({
           className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-100"
           role="alert"
         >
-          This invoice has not been posted to the ledger yet.
+          This invoice has not been posted to the ledger yet. Issue it before a
+          payment can be recorded.
         </div>
       )}
-      {posted && (
+      {posted && !paid && (
         <div
           className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-100"
           role="status"
         >
           This invoice has been posted to the ledger. Corrections must be made using
           a credit note.
+        </div>
+      )}
+      {paid && (
+        <div
+          className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900 dark:border-green-900 dark:bg-green-950/50 dark:text-green-100"
+          role="status"
+        >
+          This invoice has been fully paid.
         </div>
       )}
 
@@ -254,9 +317,41 @@ export default function InvoiceDetailCard({
                 {pdfLoading ? "Generating PDF…" : "Download PDF"}
               </Button>
             )}
+            <RecordPaymentButton
+              invoice={invoice}
+              canRecord={canEdit}
+              disabled={paymentsLoading || paymentSummary.outstanding <= 0}
+              onClick={() => setPaymentDialogOpen(true)}
+            />
           </div>
         </CardContent>
       </Card>
+
+      {showPaymentSection && (
+        <div className="space-y-4">
+          <PaymentSummaryCard summary={paymentSummary} status={invoice.status} />
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Payment history</CardTitle>
+              <CardDescription>
+                Customer payments recorded against this invoice.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PaymentHistoryTable payments={payments} loading={paymentsLoading} />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <RecordPaymentDialog
+        open={paymentDialogOpen}
+        invoice={invoice}
+        customer={customer}
+        summary={paymentSummary}
+        onCancel={() => setPaymentDialogOpen(false)}
+        onSuccess={() => void handlePaymentRecorded()}
+      />
 
       <ConfirmDialog
         open={issueOpen}

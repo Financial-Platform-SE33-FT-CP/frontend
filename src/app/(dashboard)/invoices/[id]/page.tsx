@@ -55,7 +55,7 @@ export default function InvoiceDetailPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Invoice detail</h1>
         <p className="mt-2 text-muted-foreground">
-          View invoice status, lines, and ledger posting information.
+          View invoice status, payment summary, payment history, and ledger posting.
         </p>
       </div>
 
