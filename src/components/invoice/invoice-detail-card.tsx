@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoice/invoice-status-badge";
 import { ConfirmDialog } from "@/components/invoice/confirm-dialog";
+import { CreditNoteHistoryTable } from "@/components/credit-note/credit-note-history-table";
+import { CreditNoteSummaryCard } from "@/components/credit-note/credit-note-summary-card";
+import { IssueCreditNoteButton } from "@/components/credit-note/issue-credit-note-button";
+import { IssueCreditNoteDialog } from "@/components/credit-note/issue-credit-note-dialog";
 import { PaymentHistoryTable } from "@/components/payment/payment-history-table";
 import { PaymentSummaryCard } from "@/components/payment/payment-summary-card";
 import { RecordPaymentButton } from "@/components/payment/record-payment-button";
@@ -20,7 +24,9 @@ import {
   isPostedInvoice,
   INVOICE_PDF_AVAILABLE,
   downloadInvoicePdf,
+  listInvoiceCreditNotes,
   listInvoicePayments,
+  type CreditNote,
   type Invoice,
   type Customer,
   type InvoiceSettlement,
@@ -28,6 +34,7 @@ import {
 } from "@/lib/ar-ap-api";
 import { listCoaAccounts, type CoaAccount } from "@/lib/coa-api";
 import { formatApiError } from "@/lib/api";
+import { computeCreditNoteSummary } from "@/lib/credit-note-calc";
 import { formatMoney } from "@/lib/format-money";
 import { computePaymentSummary } from "@/lib/payment-calc";
 
@@ -72,16 +79,27 @@ export default function InvoiceDetailCard({
   const [settlement, setSettlement] = useState<InvoiceSettlement | null>(null);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
+  const [creditNotesLoading, setCreditNotesLoading] = useState(false);
+  const [creditNoteDialogOpen, setCreditNoteDialogOpen] = useState(false);
 
   const draft = isDraftInvoice(invoice);
   const posted = isPostedInvoice(invoice);
   const paid = invoice.status === "paid";
   const showPaymentSection = posted;
+  const showCreditNoteSection = posted;
 
   const paymentSummary = useMemo(
     () => computePaymentSummary(invoice.total, payments, settlement),
     [invoice.total, payments, settlement],
   );
+
+  const creditNoteSummary = useMemo(
+    () => computeCreditNoteSummary(invoice.total, creditNotes),
+    [invoice.total, creditNotes],
+  );
+
+  const fullyCredited = posted && creditNoteSummary.remainingCreditable <= 0;
 
   const loadPayments = useCallback(async () => {
     if (!posted) {
@@ -112,15 +130,47 @@ export default function InvoiceDetailCard({
       .catch(() => setAccounts([]));
   }, []);
 
+  const loadCreditNotes = useCallback(async () => {
+    if (!posted) {
+      setCreditNotes([]);
+      return;
+    }
+    setCreditNotesLoading(true);
+    try {
+      const list = await listInvoiceCreditNotes(invoice.id);
+      setCreditNotes(list);
+    } catch (err) {
+      toast.error(formatApiError(err));
+      setCreditNotes([]);
+    } finally {
+      setCreditNotesLoading(false);
+    }
+  }, [invoice.id, posted]);
+
   useEffect(() => {
     void loadPayments();
   }, [loadPayments]);
+
+  useEffect(() => {
+    void loadCreditNotes();
+  }, [loadCreditNotes]);
 
   async function handlePaymentRecorded() {
     setPaymentDialogOpen(false);
     toast.success("Payment recorded successfully.");
     onUpdated?.();
     await loadPayments();
+  }
+
+  async function handleCreditNoteIssued(creditNoteNumber: string) {
+    setCreditNoteDialogOpen(false);
+    toast.success(
+      creditNoteNumber
+        ? `Credit note ${creditNoteNumber} issued successfully.`
+        : "Credit note issued successfully.",
+    );
+    onUpdated?.();
+    await loadCreditNotes();
   }
 
   const accountLabel = (id: string) => {
@@ -172,7 +222,8 @@ export default function InvoiceDetailCard({
           role="alert"
         >
           This invoice has not been posted to the ledger yet. Issue it before a
-          payment can be recorded.
+          payment or credit note can be recorded. This invoice must be issued
+          before a credit note can be created.
         </div>
       )}
       {posted && !paid && (
@@ -190,6 +241,20 @@ export default function InvoiceDetailCard({
           role="status"
         >
           This invoice has been fully paid.
+          {canEdit && !fullyCredited ? (
+            <span className="mt-1 block">
+              This invoice has already received payment. Credit note handling may
+              require refund or accounting adjustment.
+            </span>
+          ) : null}
+        </div>
+      )}
+      {fullyCredited && (
+        <div
+          className="rounded-lg border border-muted bg-muted/30 px-4 py-3 text-sm text-muted-foreground"
+          role="status"
+        >
+          This invoice has been fully credited.
         </div>
       )}
 
@@ -323,6 +388,13 @@ export default function InvoiceDetailCard({
               disabled={paymentsLoading || paymentSummary.outstanding <= 0}
               onClick={() => setPaymentDialogOpen(true)}
             />
+            <IssueCreditNoteButton
+              invoice={invoice}
+              canIssue={canEdit}
+              remainingCreditable={creditNoteSummary.remainingCreditable}
+              disabled={creditNotesLoading}
+              onClick={() => setCreditNoteDialogOpen(true)}
+            />
           </div>
         </CardContent>
       </Card>
@@ -344,6 +416,26 @@ export default function InvoiceDetailCard({
         </div>
       )}
 
+      {showCreditNoteSection && (
+        <div className="space-y-4">
+          <CreditNoteSummaryCard summary={creditNoteSummary} />
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Credit note history</CardTitle>
+              <CardDescription>
+                Credit notes issued against this invoice.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CreditNoteHistoryTable
+                creditNotes={creditNotes}
+                loading={creditNotesLoading}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <RecordPaymentDialog
         open={paymentDialogOpen}
         invoice={invoice}
@@ -351,6 +443,15 @@ export default function InvoiceDetailCard({
         summary={paymentSummary}
         onCancel={() => setPaymentDialogOpen(false)}
         onSuccess={() => void handlePaymentRecorded()}
+      />
+
+      <IssueCreditNoteDialog
+        open={creditNoteDialogOpen}
+        invoice={invoice}
+        customer={customer}
+        summary={creditNoteSummary}
+        onCancel={() => setCreditNoteDialogOpen(false)}
+        onSuccess={(creditNoteNumber) => void handleCreditNoteIssued(creditNoteNumber)}
       />
 
       <ConfirmDialog

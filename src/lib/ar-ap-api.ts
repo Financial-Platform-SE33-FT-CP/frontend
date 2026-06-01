@@ -284,3 +284,114 @@ export function paymentMethodLabel(method: string): string {
     PAYMENT_METHOD_OPTIONS.find((o) => o.value === method)?.label ?? method
   );
 }
+
+// ── US-10: credit notes ───────────────────────────────────────────────────────
+
+export type CreditNoteStatus = "issued" | "voided";
+
+export type CreditNoteLine = {
+  id: string;
+  account_id: string;
+  invoice_line_id: string | null;
+  description: string | null;
+  quantity: string | number;
+  unit_price: string | number;
+  gst_rate: string | number;
+  line_total: string | number;
+  gst_amount: string | number;
+};
+
+export type CreditNote = {
+  id: string;
+  tenant_id: string | null;
+  invoice_id: string;
+  customer_id: string | null;
+  credit_note_number: string;
+  issue_date: string;
+  reason: string | null;
+  status: CreditNoteStatus;
+  subtotal: string | number;
+  gst_amount: string | number;
+  total: string | number;
+  journal_entry_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  lines?: CreditNoteLine[];
+};
+
+export type CreditNoteLineRequest = {
+  account_id: string;
+  quantity: string;
+  unit_price: string;
+  description?: string | null;
+  gst_rate?: string;
+  invoice_line_id?: string | null;
+};
+
+export type CreateCreditNoteRequest = {
+  issue_date: string;
+  reason?: string | null;
+  lines: CreditNoteLineRequest[];
+  idempotency_key?: string | null;
+};
+
+export type ListCreditNotesParams = {
+  invoice_id?: string;
+  customer_id?: string;
+  date_from?: string;
+  date_to?: string;
+};
+
+/** Invoice statuses that accept new credit notes (US-10). */
+export function canIssueCreditNoteOnInvoice(
+  invoice: Invoice,
+  remainingCreditable: number,
+): boolean {
+  if (invoice.status === "draft") return false;
+  if (remainingCreditable <= 0) return false;
+  return (
+    invoice.status === "issued" ||
+    invoice.status === "partial" ||
+    invoice.status === "paid" ||
+    invoice.status === "overdue"
+  );
+}
+
+export function listInvoiceCreditNotes(invoiceId: string) {
+  return api.get<CreditNote[]>(
+    `/ar-ap/invoices/${invoiceId}/credit-notes`,
+    arApOpts(),
+  );
+}
+
+export function issueCreditNote(
+  invoiceId: string,
+  payload: CreateCreditNoteRequest,
+  options?: { idempotencyKey?: string },
+) {
+  const headers: Record<string, string> = {};
+  if (options?.idempotencyKey) {
+    headers["Idempotency-Key"] = options.idempotencyKey;
+  }
+  return api.post<CreditNote>(
+    `/ar-ap/invoices/${invoiceId}/credit-notes`,
+    payload,
+    { ...arApOpts(), headers },
+  );
+}
+
+export function listCreditNotes(params?: ListCreditNotesParams) {
+  const query: Record<string, string> = {};
+  if (params?.invoice_id) query.invoice_id = params.invoice_id;
+  if (params?.customer_id) query.customer_id = params.customer_id;
+  if (params?.date_from) query.date_from = params.date_from;
+  if (params?.date_to) query.date_to = params.date_to;
+  return api.get<CreditNote[]>("/ar-ap/credit-notes", {
+    ...arApOpts(),
+    params: Object.keys(query).length ? query : undefined,
+  });
+}
+
+export function getCreditNote(creditNoteId: string) {
+  return api.get<CreditNote>(`/ar-ap/credit-notes/${creditNoteId}`, arApOpts());
+}
