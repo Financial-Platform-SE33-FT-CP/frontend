@@ -35,3 +35,30 @@ describe("roundMoney", () => {
     expect(roundMoney(10.005)).toBe(10.01);
   });
 });
+
+describe("normalizeGstRateDecimal", () => {
+  it("returns decimal rate when present", async () => {
+    const { normalizeGstRateDecimal } = await import("./invoice-calc");
+    expect(normalizeGstRateDecimal("0.09")).toBe("0.09");
+  });
+
+  it("derives rate from line totals when stored rate is zero", async () => {
+    const { normalizeGstRateDecimal } = await import("./invoice-calc");
+    expect(normalizeGstRateDecimal("0", "100", "9")).toBe("0.09");
+  });
+
+  it("converts whole-number percent to decimal", async () => {
+    const { normalizeGstRateDecimal } = await import("./invoice-calc");
+    expect(normalizeGstRateDecimal("9")).toBe("0.09");
+  });
+});
+
+describe("gst rate percent helpers", () => {
+  it("converts decimal to percent display", async () => {
+    const { gstRateDecimalToPercent, gstRatePercentToDecimal } = await import(
+      "./invoice-calc"
+    );
+    expect(gstRateDecimalToPercent("0.09")).toBe("9");
+    expect(gstRatePercentToDecimal("9")).toBe("0.09");
+  });
+});
