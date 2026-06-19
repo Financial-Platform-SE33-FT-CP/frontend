@@ -15,6 +15,7 @@ const sidebarLinks = [
   { href: "/opening-balance", label: "Opening balance" },
   { href: "/journal-entries", label: "Journal Entries" },
   { href: "/invoices", label: "Invoices" },
+  { href: "/bills", label: "Bills" },
   { href: "/ledger", label: "General ledger" },
 ];
 

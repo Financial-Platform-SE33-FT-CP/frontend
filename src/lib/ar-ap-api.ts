@@ -395,3 +395,203 @@ export function listCreditNotes(params?: ListCreditNotesParams) {
 export function getCreditNote(creditNoteId: string) {
   return api.get<CreditNote>(`/ar-ap/credit-notes/${creditNoteId}`, arApOpts());
 }
+
+// ── US-11 / US-12: vendor bills (accounts payable) ───────────────────────────
+
+export type BillStatus = "draft" | "open" | "partial" | "paid" | "void";
+
+export type BillLine = {
+  id: string;
+  account_id: string;
+  description: string | null;
+  quantity: string | number;
+  unit_price: string | number;
+  gst_rate: string | number;
+  line_total: string | number;
+  gst_amount: string | number;
+};
+
+export type Bill = {
+  id: string;
+  tenant_id: string | null;
+  vendor_id: string | null;
+  bill_number: string;
+  issue_date: string | null;
+  due_date: string | null;
+  status: BillStatus;
+  subtotal: string | number;
+  gst_amount: string | number;
+  total: string | number;
+  journal_entry_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string | null;
+  lines: BillLine[];
+};
+
+export type Vendor = {
+  id: string;
+  tenant_id: string | null;
+  name: string;
+  email: string | null;
+};
+
+export type BillLineRequest = {
+  account_id: string;
+  quantity: string;
+  unit_price: string;
+  description?: string | null;
+  gst_rate?: string;
+};
+
+export type CreateBillRequest = {
+  vendor_id: string;
+  issue_date: string;
+  due_date: string;
+  lines: BillLineRequest[];
+};
+
+export type UpdateBillRequest = {
+  vendor_id?: string;
+  issue_date?: string;
+  due_date?: string;
+  lines?: BillLineRequest[];
+};
+
+export type ListBillsParams = {
+  status?: BillStatus;
+  vendor_id?: string;
+  issued_from?: string;
+  issued_to?: string;
+};
+
+export type CreateVendorRequest = {
+  name: string;
+  email?: string | null;
+};
+
+export type BillPayment = {
+  id: string;
+  tenant_id: string | null;
+  bill_id: string;
+  vendor_id: string | null;
+  amount: string | number;
+  payment_date: string | null;
+  payment_method: PaymentMethod | string;
+  reference: string | null;
+  payment_account_id: string | null;
+  journal_entry_id: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type BillSettlement = {
+  bill_id: string;
+  bill_total: string | number;
+  amount_paid: string | number;
+  outstanding: string | number;
+};
+
+export type CreateBillPaymentRequest = {
+  payment_date: string;
+  amount: string;
+  payment_method: PaymentMethod;
+  reference?: string | null;
+  payment_account_id: string;
+  idempotency_key?: string | null;
+};
+
+export type APAgingLine = {
+  bill_id: string;
+  vendor_id: string | null;
+  bill_number: string;
+  due_date: string | null;
+  bill_total: string | number;
+  amount_paid: string | number;
+  outstanding: string | number;
+  days_overdue: number;
+  aging_bucket: string;
+};
+
+export function listBills(params?: ListBillsParams) {
+  const query: Record<string, string> = {};
+  if (params?.status) query.status = params.status;
+  if (params?.vendor_id) query.vendor_id = params.vendor_id;
+  if (params?.issued_from) query.issued_from = params.issued_from;
+  if (params?.issued_to) query.issued_to = params.issued_to;
+  return api.get<Bill[]>("/ar-ap/bills", {
+    ...arApOpts(),
+    params: Object.keys(query).length ? query : undefined,
+  });
+}
+
+export function getBill(id: string) {
+  return api.get<Bill>(`/ar-ap/bills/${id}`, arApOpts());
+}
+
+export function createBill(payload: CreateBillRequest) {
+  return api.post<Bill>("/ar-ap/bills", payload, arApOpts());
+}
+
+export function updateBill(id: string, payload: UpdateBillRequest) {
+  return api.put<Bill>(`/ar-ap/bills/${id}`, payload, arApOpts());
+}
+
+export function recordBill(id: string) {
+  return api.post<Bill>(`/ar-ap/bills/${id}/record`, undefined, arApOpts());
+}
+
+export function deleteBill(id: string) {
+  return api.delete<void>(`/ar-ap/bills/${id}`, arApOpts());
+}
+
+export function listVendors() {
+  return api.get<Vendor[]>("/ar-ap/vendors", arApOpts());
+}
+
+export function createVendor(payload: CreateVendorRequest) {
+  return api.post<Vendor>("/ar-ap/vendors", payload, arApOpts());
+}
+
+export function isDraftBill(bill: Bill): boolean {
+  return bill.status === "draft";
+}
+
+export function isPostedBill(bill: Bill): boolean {
+  return bill.status !== "draft" && bill.status !== "void";
+}
+
+export function canPayBill(bill: Bill): boolean {
+  return bill.status === "open" || bill.status === "partial";
+}
+
+export function listBillPayments(billId: string) {
+  return api.get<BillPayment[]>(`/ar-ap/bills/${billId}/payments`, arApOpts());
+}
+
+export function getBillSettlement(billId: string) {
+  return api.get<BillSettlement>(`/ar-ap/bills/${billId}/settlement`, arApOpts());
+}
+
+export function payBill(
+  billId: string,
+  payload: CreateBillPaymentRequest,
+  options?: { idempotencyKey?: string },
+) {
+  const headers: Record<string, string> = {};
+  if (options?.idempotencyKey) {
+    headers["Idempotency-Key"] = options.idempotencyKey;
+  }
+  return api.post<BillPayment>(
+    `/ar-ap/bills/${billId}/payments`,
+    payload,
+    { ...arApOpts(), headers },
+  );
+}
+
+export function getApAging(asOf?: string) {
+  return api.get<APAgingLine[]>("/ar-ap/bills/ap-aging", {
+    ...arApOpts(),
+    params: asOf ? { as_of: asOf } : undefined,
+  });
+}
