@@ -17,12 +17,7 @@ function arApOpts() {
   return { baseUrl: AR_AP_BASE_URL };
 }
 
-export type InvoiceStatus =
-  | "draft"
-  | "issued"
-  | "paid"
-  | "partial"
-  | "overdue";
+export type InvoiceStatus = "draft" | "issued" | "paid" | "partial" | "overdue";
 
 export type InvoiceLine = {
   id: string;
@@ -121,7 +116,11 @@ export function updateInvoice(id: string, payload: UpdateInvoiceRequest) {
 }
 
 export function issueInvoice(id: string) {
-  return api.post<Invoice>(`/ar-ap/invoices/${id}/issue`, undefined, arApOpts());
+  return api.post<Invoice>(
+    `/ar-ap/invoices/${id}/issue`,
+    undefined,
+    arApOpts(),
+  );
 }
 
 export function deleteInvoice(id: string) {
@@ -225,7 +224,10 @@ export function canRecordPaymentOnInvoice(invoice: Invoice): boolean {
 }
 
 export function listInvoicePayments(invoiceId: string) {
-  return api.get<Payment[]>(`/ar-ap/invoices/${invoiceId}/payments`, arApOpts());
+  return api.get<Payment[]>(
+    `/ar-ap/invoices/${invoiceId}/payments`,
+    arApOpts(),
+  );
 }
 
 export function getInvoiceSettlement(invoiceId: string) {
@@ -244,11 +246,10 @@ export function recordPayment(
   if (options?.idempotencyKey) {
     headers["Idempotency-Key"] = options.idempotencyKey;
   }
-  return api.post<Payment>(
-    `/ar-ap/invoices/${invoiceId}/payments`,
-    payload,
-    { ...arApOpts(), headers },
-  );
+  return api.post<Payment>(`/ar-ap/invoices/${invoiceId}/payments`, payload, {
+    ...arApOpts(),
+    headers,
+  });
 }
 
 export function listPayments(params?: ListPaymentsParams) {
@@ -570,7 +571,10 @@ export function listBillPayments(billId: string) {
 }
 
 export function getBillSettlement(billId: string) {
-  return api.get<BillSettlement>(`/ar-ap/bills/${billId}/settlement`, arApOpts());
+  return api.get<BillSettlement>(
+    `/ar-ap/bills/${billId}/settlement`,
+    arApOpts(),
+  );
 }
 
 export function payBill(
@@ -582,11 +586,10 @@ export function payBill(
   if (options?.idempotencyKey) {
     headers["Idempotency-Key"] = options.idempotencyKey;
   }
-  return api.post<BillPayment>(
-    `/ar-ap/bills/${billId}/payments`,
-    payload,
-    { ...arApOpts(), headers },
-  );
+  return api.post<BillPayment>(`/ar-ap/bills/${billId}/payments`, payload, {
+    ...arApOpts(),
+    headers,
+  });
 }
 
 export function getApAging(asOf?: string) {
@@ -594,4 +597,111 @@ export function getApAging(asOf?: string) {
     ...arApOpts(),
     params: asOf ? { as_of: asOf } : undefined,
   });
+}
+
+// ── US-13: bank statement upload ─────────────────────────────────────────────
+
+export type BankTransaction = {
+  id: string;
+  bank_account_id: string;
+  transaction_date: string;
+  description: string | null;
+  amount: string;
+  matched: boolean;
+  journal_entry_id: string | null;
+  checksum_hash: string | null;
+  upload_batch_id: string | null;
+  reconciliation_entity_type: string | null;
+  reconciliation_entity_id: string | null;
+  created_at: string;
+};
+
+export type UploadBankStatementRequest = {
+  bank_account_id: string;
+  csv_content: string;
+};
+
+export function uploadBankStatement(payload: UploadBankStatementRequest) {
+  return api.post<BankTransaction[]>(
+    "/ar-ap/bank-statements/upload",
+    payload,
+    arApOpts(),
+  );
+}
+
+// ── US-14: reconciliation ────────────────────────────────────────────────────
+
+export type ReconciliationSuggestion = {
+  bank_transaction_id: string;
+  match_type: string;
+  match_id: string;
+  match_label: string;
+  match_amount: string;
+  difference: string;
+  confidence: string;
+};
+
+export type ReconcileTransactionRequest = {
+  transaction_id: string;
+  match_type: string;
+  match_id: string | null;
+  account_id: string;
+};
+
+export function listUnmatched(bankAccountId?: string) {
+  return api.get<BankTransaction[]>("/ar-ap/bank-transactions/unmatched", {
+    ...arApOpts(),
+    ...(bankAccountId
+      ? { params: { bank_account_id: bankAccountId } as Record<string, string> }
+      : {}),
+  });
+}
+export function listMatched(bankAccountId?: string) {
+  return api.get<BankTransaction[]>("/ar-ap/bank-transactions/matched", {
+    ...arApOpts(),
+    ...(bankAccountId
+      ? { params: { bank_account_id: bankAccountId } as Record<string, string> }
+      : {}),
+  });
+}
+
+export function getReconciliationSuggestions(transactionId: string) {
+  return api.get<ReconciliationSuggestion[]>(
+    `/ar-ap/bank-transactions/${transactionId}/suggestions`,
+    arApOpts(),
+  );
+}
+
+export function reconcileTransaction(payload: ReconcileTransactionRequest) {
+  return api.post<BankTransaction>(
+    "/ar-ap/bank-transactions/reconcile",
+    payload,
+    arApOpts(),
+  );
+}
+
+// ── bank accounts (needed by US-13/US-14) ────────────────────────────────────
+
+export type BankAccount = {
+  id: string;
+  tenant_id: string | null;
+  name: string;
+  account_number: string | null;
+  currency: string;
+  opening_balance: string;
+};
+
+export type CreateBankAccountRequest = {
+  name: string;
+  account_number?: string | null;
+  currency?: string;
+  opening_balance?: string;
+};
+
+export function listBankAccounts() {
+  return api.get<BankAccount[]>("/ar-ap/bank-accounts", arApOpts());
+}
+
+export function createBankAccount(payload: CreateBankAccountRequest) {
+  return api.post<BankAccount>("/ar-ap/bank-accounts", payload, arApOpts());
 }
