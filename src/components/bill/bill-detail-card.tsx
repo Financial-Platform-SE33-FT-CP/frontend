@@ -28,10 +28,19 @@ type Props = {
   onUpdated: () => void;
 };
 
-export default function BillDetailCard({ bill, vendor, canEdit, onUpdated }: Props) {
+export default function BillDetailCard({
+  bill,
+  vendor,
+  canEdit,
+  onUpdated,
+}: Props) {
   const [payments, setPayments] = useState<BillPayment[]>([]);
-  const [summary, setSummary] = useState(computeBillPaymentSummary(Number(bill.total), []));
-  const [accountLabels, setAccountLabels] = useState<Record<string, string>>({});
+  const [summary, setSummary] = useState(
+    computeBillPaymentSummary(Number(bill.total), []),
+  );
+  const [accountLabels, setAccountLabels] = useState<Record<string, string>>(
+    {},
+  );
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   const loadPayments = useCallback(async () => {
@@ -66,11 +75,19 @@ export default function BillDetailCard({ bill, vendor, canEdit, onUpdated }: Pro
           <h1 className="text-3xl font-bold tracking-tight">
             {bill.bill_number || "Draft bill"}
           </h1>
-          <p className="mt-2 text-muted-foreground">{vendor?.name ?? "Vendor"}</p>
+          <p className="mt-2 text-muted-foreground">
+            {vendor?.name ?? "Vendor"}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline"><Link href="/bills">Back</Link></Button>
-          <RecordBillPaymentButton bill={bill} canRecord={canEdit} onClick={() => setPaymentDialogOpen(true)} />
+          <Button asChild variant="outline">
+            <Link href="/bills">Back</Link>
+          </Button>
+          <RecordBillPaymentButton
+            bill={bill}
+            canRecord={canEdit}
+            onClick={() => setPaymentDialogOpen(true)}
+          />
         </div>
       </div>
 
@@ -80,22 +97,47 @@ export default function BillDetailCard({ bill, vendor, canEdit, onUpdated }: Pro
           <BillStatusBadge status={bill.status} />
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div><p className="text-xs text-muted-foreground">Bill date</p><p>{bill.issue_date ?? "—"}</p></div>
-          <div><p className="text-xs text-muted-foreground">Due date</p><p>{bill.due_date ?? "—"}</p></div>
-          <div><p className="text-xs text-muted-foreground">Subtotal</p><p>{formatMoney(bill.subtotal)}</p></div>
-          <div><p className="text-xs text-muted-foreground">GST input</p><p>{formatMoney(bill.gst_amount)}</p></div>
-          <div><p className="text-xs text-muted-foreground">Total</p><p className="font-semibold">{formatMoney(bill.total)}</p></div>
+          <div>
+            <p className="text-xs text-muted-foreground">Bill date</p>
+            <p>{bill.issue_date ?? "—"}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Due date</p>
+            <p>{bill.due_date ?? "—"}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Subtotal</p>
+            <p>{formatMoney(bill.subtotal)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">GST input</p>
+            <p>{formatMoney(bill.gst_amount)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Total</p>
+            <p className="font-semibold">{formatMoney(bill.total)}</p>
+          </div>
           {isPostedBill(bill) && (
             <>
-              <div><p className="text-xs text-muted-foreground">Paid</p><p>{formatMoney(summary.amountPaid)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Outstanding</p><p className="font-semibold">{formatMoney(summary.outstanding)}</p></div>
+              <div>
+                <p className="text-xs text-muted-foreground">Paid</p>
+                <p>{formatMoney(summary.amountPaid)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Outstanding</p>
+                <p className="font-semibold">
+                  {formatMoney(summary.outstanding)}
+                </p>
+              </div>
             </>
           )}
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Line items</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Line items</CardTitle>
+        </CardHeader>
         <CardContent>
           <table className="w-full text-sm">
             <thead>
@@ -110,9 +152,15 @@ export default function BillDetailCard({ bill, vendor, canEdit, onUpdated }: Pro
               {bill.lines.map((line) => (
                 <tr key={line.id} className="border-b">
                   <td className="py-2">{line.description ?? "—"}</td>
-                  <td className="py-2">{accountLabels[line.account_id] ?? line.account_id}</td>
-                  <td className="py-2 text-right">{formatMoney(line.line_total)}</td>
-                  <td className="py-2 text-right">{formatMoney(line.gst_amount)}</td>
+                  <td className="py-2">
+                    {accountLabels[line.account_id] ?? line.account_id}
+                  </td>
+                  <td className="py-2 text-right">
+                    {formatMoney(line.line_total)}
+                  </td>
+                  <td className="py-2 text-right">
+                    {formatMoney(line.gst_amount)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -122,7 +170,9 @@ export default function BillDetailCard({ bill, vendor, canEdit, onUpdated }: Pro
 
       {isPostedBill(bill) && payments.length > 0 && (
         <Card>
-          <CardHeader><CardTitle>Payment history</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Payment history</CardTitle>
+          </CardHeader>
           <CardContent>
             <table className="w-full text-sm">
               <thead>

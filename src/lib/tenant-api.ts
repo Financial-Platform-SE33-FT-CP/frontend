@@ -100,3 +100,17 @@ export async function removeTenantMember(tenantId: string, targetUserId: string)
   });
   if (!res.ok) throw new Error(await parseError(res));
 }
+
+export async function updateTenantMemberRole(
+  tenantId: string,
+  targetUserId: string,
+  role: TenantApiRole,
+): Promise<TenantMemberDto> {
+  const res = await fetch(`${base()}/tenants/${tenantId}/users/${targetUserId}`, {
+    method: "PATCH",
+    headers: { ...headers(false), "Content-Type": "application/json" },
+    body: JSON.stringify({ role }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json() as Promise<TenantMemberDto>;
+}
