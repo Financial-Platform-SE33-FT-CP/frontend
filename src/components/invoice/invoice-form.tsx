@@ -1,10 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CustomerSelect } from "@/components/invoice/customer-select";
 import { RevenueAccountPicker } from "@/components/invoice/revenue-account-picker";
@@ -14,6 +20,8 @@ import {
   createInvoice,
   updateInvoice,
   issueInvoice,
+  listGstCodes,
+  type GstCode,
   type CreateInvoiceRequest,
   type Invoice,
   type InvoiceLineRequest,
@@ -25,6 +33,7 @@ import {
   type LineCalcInput,
 } from "@/lib/invoice-calc";
 import { formatMoney } from "@/lib/format-money";
+import { GstCodeSelect } from "@/components/gst/gst-code-select";
 
 export type InvoiceFormLine = {
   key: number;
@@ -32,6 +41,7 @@ export type InvoiceFormLine = {
   account_id: string;
   quantity: string;
   unit_price: string;
+  gst_code_id: string;
   gst_rate: string;
 };
 
@@ -42,7 +52,8 @@ function newLine(key: number): InvoiceFormLine {
     account_id: "",
     quantity: "1",
     unit_price: "",
-    gst_rate: "0.09",
+    gst_code_id: "",
+    gst_rate: "0",
   };
 }
 
@@ -52,6 +63,7 @@ function linesToPayload(lines: InvoiceFormLine[]): InvoiceLineRequest[] {
     quantity: l.quantity,
     unit_price: l.unit_price,
     description: l.description.trim() || null,
+    gst_code_id: l.gst_code_id || null,
     gst_rate: l.gst_rate || "0",
   }));
 }
@@ -63,6 +75,7 @@ function invoiceToFormLines(invoice: Invoice): InvoiceFormLine[] {
     account_id: line.account_id,
     quantity: String(line.quantity),
     unit_price: String(line.unit_price),
+    gst_code_id: line.gst_code_id ?? "",
     gst_rate: String(line.gst_rate),
   }));
 }
@@ -89,13 +102,22 @@ export default function InvoiceForm({
   const [lines, setLines] = useState<InvoiceFormLine[]>(
     initial ? invoiceToFormLines(initial) : [newLine(0)],
   );
-  const [nextKey, setNextKey] = useState(
-    initial ? initial.lines.length : 1,
-  );
+  const [nextKey, setNextKey] = useState(initial ? initial.lines.length : 1);
   const [saving, setSaving] = useState(false);
   const [issuing, setIssuing] = useState(false);
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
-  const [savedInvoice, setSavedInvoice] = useState<Invoice | null>(initial ?? null);
+  const [savedInvoice, setSavedInvoice] = useState<Invoice | null>(
+    initial ?? null,
+  );
+  const [gstCodes, setGstCodes] = useState<GstCode[]>([]);
+
+  useEffect(() => {
+    void listGstCodes()
+      .then(setGstCodes)
+      .catch((error) => {
+        toast.error(formatApiError(error));
+      });
+  }, []);
 
   const calcInputs: LineCalcInput[] = useMemo(
     () =>
@@ -112,9 +134,15 @@ export default function InvoiceForm({
     [calcInputs],
   );
 
-  function updateLine(key: number, field: keyof InvoiceFormLine, value: string) {
+  function updateLine(
+    key: number,
+    field: keyof InvoiceFormLine,
+    value: string,
+  ) {
     setLines((prev) =>
-      prev.map((line) => (line.key === key ? { ...line, [field]: value } : line)),
+      prev.map((line) =>
+        line.key === key ? { ...line, [field]: value } : line,
+      ),
     );
   }
 
@@ -132,13 +160,15 @@ export default function InvoiceForm({
     if (!customerId) return "Customer is required.";
     if (!issueDate) return "Issue date is required.";
     if (!dueDate) return "Due date is required.";
-    if (dueDate < issueDate) return "Due date cannot be earlier than issue date.";
+    if (dueDate < issueDate)
+      return "Due date cannot be earlier than issue date.";
     if (lines.length < 1) return "At least one invoice line is required.";
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const n = i + 1;
-      if (!line.description.trim()) return `Line ${n}: description is required.`;
+      if (!line.description.trim())
+        return `Line ${n}: description is required.`;
       if (!line.account_id) return `Line ${n}: revenue account is required.`;
       const qty = parseFloat(line.quantity);
       if (!Number.isFinite(qty) || qty <= 0) {
@@ -151,6 +181,9 @@ export default function InvoiceForm({
       const gst = parseFloat(line.gst_rate);
       if (!Number.isFinite(gst) || gst < 0) {
         return `Line ${n}: GST rate must be 0 or greater.`;
+      }
+      if (gst > 0 && !line.gst_code_id) {
+        return `Line ${n}: GST code is required when GST applies.`;
       }
     }
     return null;
@@ -233,7 +266,9 @@ export default function InvoiceForm({
       <form onSubmit={handleSaveDraft} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>{mode === "create" ? "New invoice" : "Edit draft invoice"}</CardTitle>
+            <CardTitle>
+              {mode === "create" ? "New invoice" : "Edit draft invoice"}
+            </CardTitle>
             <CardDescription>
               Save as draft first, then issue when ready to post to the ledger.
             </CardDescription>
@@ -276,7 +311,9 @@ export default function InvoiceForm({
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Line items</CardTitle>
-              <CardDescription>Revenue accounts, quantities, and GST per line.</CardDescription>
+              <CardDescription>
+                Revenue accounts, quantities, and GST per line.
+              </CardDescription>
             </div>
             {canEdit && (
               <Button
@@ -298,7 +335,7 @@ export default function InvoiceForm({
                   <th className="pb-2 px-2 font-medium">Revenue account</th>
                   <th className="pb-2 px-2 font-medium w-20">Qty</th>
                   <th className="pb-2 px-2 font-medium w-24">Unit price</th>
-                  <th className="pb-2 px-2 font-medium w-20">GST rate</th>
+                  <th className="pb-2 px-2 font-medium w-40">GST code</th>
                   <th className="pb-2 px-2 font-medium text-right">Subtotal</th>
                   <th className="pb-2 px-2 font-medium text-right">GST</th>
                   <th className="pb-2 px-2 font-medium text-right">Total</th>
@@ -313,7 +350,10 @@ export default function InvoiceForm({
                     gst_rate: line.gst_rate,
                   });
                   return (
-                    <tr key={line.key} className="border-b border-muted align-top">
+                    <tr
+                      key={line.key}
+                      className="border-b border-muted align-top"
+                    >
                       <td className="py-2 pr-2">
                         <Input
                           placeholder="Description"
@@ -328,7 +368,9 @@ export default function InvoiceForm({
                         <RevenueAccountPicker
                           value={line.account_id}
                           disabled={!canEdit || saving || issuing}
-                          onChange={(id) => updateLine(line.key, "account_id", id)}
+                          onChange={(id) =>
+                            updateLine(line.key, "account_id", id)
+                          }
                         />
                       </td>
                       <td className="py-2 px-2">
@@ -356,15 +398,24 @@ export default function InvoiceForm({
                         />
                       </td>
                       <td className="py-2 px-2">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.0001"
-                          value={line.gst_rate}
+                        <GstCodeSelect
+                          value={line.gst_code_id}
+                          codes={gstCodes}
+                          allowedKinds={["output", "zero_rated", "exempt"]}
                           disabled={!canEdit || saving || issuing}
-                          onChange={(e) =>
-                            updateLine(line.key, "gst_rate", e.target.value)
-                          }
+                          onChange={(code) => {
+                            setLines((previous) =>
+                              previous.map((item) =>
+                                item.key === line.key
+                                  ? {
+                                      ...item,
+                                      gst_code_id: code?.id ?? "",
+                                      gst_rate: code ? String(code.rate) : "0",
+                                    }
+                                  : item,
+                              ),
+                            );
+                          }}
                         />
                       </td>
                       <td className="py-2 px-2 text-right font-mono whitespace-nowrap">

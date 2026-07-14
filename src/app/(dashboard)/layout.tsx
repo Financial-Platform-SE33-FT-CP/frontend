@@ -16,6 +16,7 @@ const sidebarLinks = [
   { href: "/journal-entries", label: "Journal Entries" },
   { href: "/invoices", label: "Invoices" },
   { href: "/bills", label: "Bills" },
+  { href: "/gst", label: "GST Reporting" },
   { href: "/ledger", label: "General ledger" },
 ];
 

@@ -17,16 +17,12 @@ function arApOpts() {
   return { baseUrl: AR_AP_BASE_URL };
 }
 
-export type InvoiceStatus =
-  | "draft"
-  | "issued"
-  | "paid"
-  | "partial"
-  | "overdue";
+export type InvoiceStatus = "draft" | "issued" | "paid" | "partial" | "overdue";
 
 export type InvoiceLine = {
   id: string;
   account_id: string;
+  gst_code_id: string | null;
   description: string | null;
   quantity: string | number;
   unit_price: string | number;
@@ -66,6 +62,7 @@ export type InvoiceLineRequest = {
   quantity: string;
   unit_price: string;
   description?: string | null;
+  gst_code_id?: string | null;
   gst_rate?: string;
 };
 
@@ -121,7 +118,11 @@ export function updateInvoice(id: string, payload: UpdateInvoiceRequest) {
 }
 
 export function issueInvoice(id: string) {
-  return api.post<Invoice>(`/ar-ap/invoices/${id}/issue`, undefined, arApOpts());
+  return api.post<Invoice>(
+    `/ar-ap/invoices/${id}/issue`,
+    undefined,
+    arApOpts(),
+  );
 }
 
 export function deleteInvoice(id: string) {
@@ -225,7 +226,10 @@ export function canRecordPaymentOnInvoice(invoice: Invoice): boolean {
 }
 
 export function listInvoicePayments(invoiceId: string) {
-  return api.get<Payment[]>(`/ar-ap/invoices/${invoiceId}/payments`, arApOpts());
+  return api.get<Payment[]>(
+    `/ar-ap/invoices/${invoiceId}/payments`,
+    arApOpts(),
+  );
 }
 
 export function getInvoiceSettlement(invoiceId: string) {
@@ -244,11 +248,10 @@ export function recordPayment(
   if (options?.idempotencyKey) {
     headers["Idempotency-Key"] = options.idempotencyKey;
   }
-  return api.post<Payment>(
-    `/ar-ap/invoices/${invoiceId}/payments`,
-    payload,
-    { ...arApOpts(), headers },
-  );
+  return api.post<Payment>(`/ar-ap/invoices/${invoiceId}/payments`, payload, {
+    ...arApOpts(),
+    headers,
+  });
 }
 
 export function listPayments(params?: ListPaymentsParams) {
@@ -293,6 +296,7 @@ export type CreditNoteLine = {
   id: string;
   account_id: string;
   invoice_line_id: string | null;
+  gst_code_id: string | null;
   description: string | null;
   quantity: string | number;
   unit_price: string | number;
@@ -324,6 +328,7 @@ export type CreditNoteLineRequest = {
   quantity: string;
   unit_price: string;
   description?: string | null;
+  gst_code_id?: string | null;
   gst_rate?: string;
   invoice_line_id?: string | null;
 };
@@ -403,6 +408,7 @@ export type BillStatus = "draft" | "open" | "partial" | "paid" | "void";
 export type BillLine = {
   id: string;
   account_id: string;
+  gst_code_id: string | null;
   description: string | null;
   quantity: string | number;
   unit_price: string | number;
@@ -441,6 +447,7 @@ export type BillLineRequest = {
   quantity: string;
   unit_price: string;
   description?: string | null;
+  gst_code_id?: string | null;
   gst_rate?: string;
 };
 
@@ -570,7 +577,10 @@ export function listBillPayments(billId: string) {
 }
 
 export function getBillSettlement(billId: string) {
-  return api.get<BillSettlement>(`/ar-ap/bills/${billId}/settlement`, arApOpts());
+  return api.get<BillSettlement>(
+    `/ar-ap/bills/${billId}/settlement`,
+    arApOpts(),
+  );
 }
 
 export function payBill(
@@ -582,11 +592,10 @@ export function payBill(
   if (options?.idempotencyKey) {
     headers["Idempotency-Key"] = options.idempotencyKey;
   }
-  return api.post<BillPayment>(
-    `/ar-ap/bills/${billId}/payments`,
-    payload,
-    { ...arApOpts(), headers },
-  );
+  return api.post<BillPayment>(`/ar-ap/bills/${billId}/payments`, payload, {
+    ...arApOpts(),
+    headers,
+  });
 }
 
 export function getApAging(asOf?: string) {
@@ -594,4 +603,79 @@ export function getApAging(asOf?: string) {
     ...arApOpts(),
     params: asOf ? { as_of: asOf } : undefined,
   });
+}
+
+export type GstKind = "output" | "input" | "zero_rated" | "exempt";
+
+export type GstCode = {
+  id: string;
+  tenant_id: string | null;
+  code: string;
+  rate: string | number;
+  gst_kind: GstKind;
+  is_active: boolean;
+};
+
+export type GstSummary = {
+  reporting_period: string;
+  output_tax: string | number;
+  input_tax: string | number;
+  net_gst_payable: string | number;
+  zero_rated_supplies: string | number;
+  exempt_supplies: string | number;
+};
+
+export function listGstCodes(activeOnly = true) {
+  return api.get<GstCode[]>("/ar-ap/gst/codes", {
+    ...arApOpts(),
+    params: {
+      active_only: String(activeOnly),
+    },
+  });
+}
+
+export function initializeDefaultGstCodes() {
+  return api.post<GstCode[]>(
+    "/ar-ap/gst/codes/defaults",
+    undefined,
+    arApOpts(),
+  );
+}
+
+export function getGstSummary(reportingPeriod: string) {
+  return api.get<GstSummary>("/ar-ap/gst/summary", {
+    ...arApOpts(),
+    params: {
+      reporting_period: reportingPeriod,
+    },
+  });
+}
+
+export async function downloadGstSummaryCsv(
+  reportingPeriod: string,
+): Promise<Blob> {
+  const opts = arApOpts();
+  const base = opts.baseUrl.replace(/\/$/, "");
+  const path = `/ar-ap/gst/export?reporting_period=${encodeURIComponent(reportingPeriod)}`;
+  const url =
+    /^https?:\/\//i.test(base) || base.startsWith("/")
+      ? `${base}${path}`
+      : path;
+
+  const { getToken, getTenantId } = await import("./auth");
+  const headers: Record<string, string> = {};
+
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const tenantId = getTenantId();
+  if (tenantId) headers["X-Tenant-ID"] = tenantId;
+
+  const response = await fetch(url, { headers });
+
+  if (!response.ok) {
+    throw new Error(`GST CSV download failed (${response.status})`);
+  }
+
+  return response.blob();
 }
