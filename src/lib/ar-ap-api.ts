@@ -605,6 +605,8 @@ export function getApAging(asOf?: string) {
   });
 }
 
+// ── US-15 / US-16: GST tracking and reporting ──────────────────────────────
+
 export type GstKind = "output" | "input" | "zero_rated" | "exempt";
 
 export type GstCode = {
@@ -678,4 +680,112 @@ export async function downloadGstSummaryCsv(
   }
 
   return response.blob();
+}
+
+// ── US-13: bank statement upload ─────────────────────────────────────────────
+
+export type BankTransaction = {
+  id: string;
+  bank_account_id: string;
+  transaction_date: string;
+  description: string | null;
+  amount: string;
+  matched: boolean;
+  journal_entry_id: string | null;
+  checksum_hash: string | null;
+  upload_batch_id: string | null;
+  reconciliation_entity_type: string | null;
+  reconciliation_entity_id: string | null;
+  created_at: string;
+};
+
+export type UploadBankStatementRequest = {
+  bank_account_id: string;
+  csv_content: string;
+};
+
+export function uploadBankStatement(payload: UploadBankStatementRequest) {
+  return api.post<BankTransaction[]>(
+    "/ar-ap/bank-statements/upload",
+    payload,
+    arApOpts(),
+  );
+}
+
+// ── US-14: reconciliation ────────────────────────────────────────────────────
+
+export type ReconciliationSuggestion = {
+  bank_transaction_id: string;
+  match_type: string;
+  match_id: string;
+  match_label: string;
+  match_amount: string;
+  difference: string;
+  confidence: string;
+};
+
+export type ReconcileTransactionRequest = {
+  transaction_id: string;
+  match_type: string;
+  match_id: string | null;
+  account_id: string;
+};
+
+export function listUnmatched(bankAccountId?: string) {
+  return api.get<BankTransaction[]>("/ar-ap/bank-transactions/unmatched", {
+    ...arApOpts(),
+    ...(bankAccountId
+      ? { params: { bank_account_id: bankAccountId } as Record<string, string> }
+      : {}),
+  });
+}
+
+export function listMatched(bankAccountId?: string) {
+  return api.get<BankTransaction[]>("/ar-ap/bank-transactions/matched", {
+    ...arApOpts(),
+    ...(bankAccountId
+      ? { params: { bank_account_id: bankAccountId } as Record<string, string> }
+      : {}),
+  });
+}
+
+export function getReconciliationSuggestions(transactionId: string) {
+  return api.get<ReconciliationSuggestion[]>(
+    `/ar-ap/bank-transactions/${transactionId}/suggestions`,
+    arApOpts(),
+  );
+}
+
+export function reconcileTransaction(payload: ReconcileTransactionRequest) {
+  return api.post<BankTransaction>(
+    "/ar-ap/bank-transactions/reconcile",
+    payload,
+    arApOpts(),
+  );
+}
+
+// ── bank accounts (needed by US-13/US-14) ────────────────────────────────────
+
+export type BankAccount = {
+  id: string;
+  tenant_id: string | null;
+  name: string;
+  account_number: string | null;
+  currency: string;
+  opening_balance: string;
+};
+
+export type CreateBankAccountRequest = {
+  name: string;
+  account_number?: string | null;
+  currency?: string;
+  opening_balance?: string;
+};
+
+export function listBankAccounts() {
+  return api.get<BankAccount[]>("/ar-ap/bank-accounts", arApOpts());
+}
+
+export function createBankAccount(payload: CreateBankAccountRequest) {
+  return api.post<BankAccount>("/ar-ap/bank-accounts", payload, arApOpts());
 }

@@ -8,6 +8,7 @@ import {
   addTenantMember,
   listTenantMembers,
   removeTenantMember,
+  updateTenantMemberRole,
   type TenantMemberDto,
 } from "@/lib/tenant-api";
 import {
@@ -28,6 +29,7 @@ export function TenantTeamPanel({ tenantId, myRole }: TenantTeamPanelProps) {
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
   const [newRole, setNewRole] = useState<TenantApiRole>("viewer");
+  const [updatingRole, setUpdatingRole] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,6 +79,24 @@ export function TenantTeamPanel({ tenantId, myRole }: TenantTeamPanelProps) {
     }
   }
 
+  async function onRoleChange(
+    targetUserId: string,
+    newRoleValue: TenantApiRole,
+  ) {
+    setUpdatingRole((prev) => ({ ...prev, [targetUserId]: true }));
+    try {
+      await updateTenantMemberRole(tenantId, targetUserId, newRoleValue);
+      toast.success("Role updated");
+      await load();
+    } catch (e) {
+      toast.error("Could not update role", {
+        description: e instanceof Error ? e.message : "Unknown error",
+      });
+    } finally {
+      setUpdatingRole((prev) => ({ ...prev, [targetUserId]: false }));
+    }
+  }
+
   return (
     <div className="space-y-4 rounded-lg border p-4">
       <div>
@@ -113,7 +133,11 @@ export function TenantTeamPanel({ tenantId, myRole }: TenantTeamPanelProps) {
               ))}
             </select>
           </div>
-          <Button type="button" className="sm:mb-0" onClick={() => void onAdd()}>
+          <Button
+            type="button"
+            className="sm:mb-0"
+            onClick={() => void onAdd()}
+          >
             Add member
           </Button>
         </div>
@@ -153,8 +177,31 @@ export function TenantTeamPanel({ tenantId, myRole }: TenantTeamPanelProps) {
                 <tr key={m.id} className="border-b border-border/60">
                   <td className="py-2 pr-2 text-sm">{m.email}</td>
                   <td className="py-2 pr-2">
-                    {apiRoleLabel(m.role)}
-                    <span className="ml-1 text-xs text-muted-foreground">({m.role})</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{apiRoleLabel(m.role)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({m.role})
+                      </span>
+                      {manage && m.user_id !== selfId && (
+                        <select
+                          className="ml-2 h-7 rounded border px-1.5 text-xs"
+                          value={m.role}
+                          disabled={updatingRole[m.user_id]}
+                          onChange={(e) =>
+                            void onRoleChange(
+                              m.user_id,
+                              e.target.value as TenantApiRole,
+                            )
+                          }
+                        >
+                          {API_ROLE_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
                   </td>
                   {manage && (
                     <td className="py-2">
