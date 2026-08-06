@@ -19,6 +19,9 @@ const sidebarLinks = [
   { href: "/bills", label: "Bills" },
   { href: "/gst", label: "GST Reporting" },
   { href: "/ledger", label: "General ledger" },
+  { href: "/audit-trail", label: "Audit Trail" },
+  { href: "/year-end", label: "Year-End Close" },
+  { href: "/billing", label: "Subscription" },
 ];
 
 export default function DashboardLayout({

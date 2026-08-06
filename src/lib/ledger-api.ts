@@ -1,6 +1,7 @@
 import { api, formatApiErrorBody } from "./api";
 import { getToken, setTenantId } from "./auth";
 import { getActiveTenantId } from "./workspace-session";
+import type { JournalEntry } from "./journal-entries";
 
 // Production (behind nginx): leave unset → relative path /api/ledger, calls go through proxy.
 // Local dev: set NEXT_PUBLIC_LEDGER_SERVICE_URL=http://localhost:8003 in .env.local
@@ -181,4 +182,40 @@ export async function getAccountLedger(
     ...ledgerOpts(),
     params: Object.keys(params).length ? params : undefined,
   });
+}
+
+// ── Accounting Periods ──────────────────────────────────────────
+
+export type AccountingPeriod = {
+  id: string;
+  start_date: string;
+  end_date: string;
+  is_closed: boolean;
+  closed_by: string | null;
+  created_at: string;
+};
+
+export type CloseFiscalYearResult = {
+  closing_journal_entry: JournalEntry | null;
+  period_id: string;
+  next_period: AccountingPeriod | null;
+  message: string;
+};
+
+export async function listPeriods(): Promise<AccountingPeriod[]> {
+  return api.get<AccountingPeriod[]>("/ledger/periods", ledgerOpts());
+}
+
+export async function getCurrentPeriod(): Promise<AccountingPeriod> {
+  return api.get<AccountingPeriod>("/ledger/periods/current", ledgerOpts());
+}
+
+export async function closePeriod(
+  periodId: string,
+): Promise<CloseFiscalYearResult> {
+  return api.post<CloseFiscalYearResult>(
+    `/ledger/periods/${periodId}/close`,
+    null,
+    ledgerOpts(),
+  );
 }
