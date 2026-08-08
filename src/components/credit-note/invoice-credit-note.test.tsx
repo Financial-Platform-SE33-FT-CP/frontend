@@ -2,16 +2,10 @@ import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { IssueCreditNoteButton } from "@/components/credit-note/issue-credit-note-button";
 import { CreditNoteHistoryTable } from "@/components/credit-note/credit-note-history-table";
-import {
-  canIssueCreditNoteOnInvoice,
-  type Invoice,
-} from "@/lib/ar-ap-api";
+import { canIssueCreditNoteOnInvoice, type Invoice } from "@/lib/ar-ap-api";
 import { canEditAccountingData } from "@/lib/tenant-roles";
 import { validateCreditNoteTotal } from "@/lib/credit-note-calc";
-import {
-  calcInvoiceTotalsPreview,
-  calcLinePreview,
-} from "@/lib/invoice-calc";
+import { calcInvoiceTotalsPreview, calcLinePreview } from "@/lib/invoice-calc";
 
 function invoice(status: Invoice["status"]): Invoice {
   return {
@@ -33,6 +27,7 @@ function invoice(status: Invoice["status"]): Invoice {
       {
         id: "line-1",
         account_id: "acc-1",
+        gst_code_id: "gst-output-code",
         description: "Consulting",
         quantity: "1",
         unit_price: "300",

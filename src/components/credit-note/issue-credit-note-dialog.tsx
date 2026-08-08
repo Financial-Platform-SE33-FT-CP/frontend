@@ -2,11 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { RevenueAccountPicker } from "@/components/invoice/revenue-account-picker";
+import { GstCodeSelect } from "@/components/gst/gst-code-select";
 import {
   issueCreditNote,
+  listGstCodes,
+  type GstCode,
   type CreateCreditNoteRequest,
   type CreditNoteLineRequest,
   type Customer,
@@ -21,8 +30,6 @@ import {
 import {
   calcInvoiceTotalsPreview,
   calcLinePreview,
-  gstRateDecimalToPercent,
-  gstRatePercentToDecimal,
   normalizeGstRateDecimal,
   type LineCalcInput,
 } from "@/lib/invoice-calc";
@@ -35,6 +42,7 @@ export type CreditNoteFormLine = {
   account_id: string;
   quantity: string;
   unit_price: string;
+  gst_code_id: string;
   gst_rate: string;
 };
 
@@ -46,11 +54,15 @@ function newLine(key: number): CreditNoteFormLine {
     account_id: "",
     quantity: "1",
     unit_price: "",
-    gst_rate: "0.09",
+    gst_code_id: "",
+    gst_rate: "0",
   };
 }
 
-function lineFromInvoice(key: number, invoiceLine: InvoiceLine): CreditNoteFormLine {
+function lineFromInvoice(
+  key: number,
+  invoiceLine: InvoiceLine,
+): CreditNoteFormLine {
   return {
     key,
     invoice_line_id: invoiceLine.id,
@@ -58,6 +70,7 @@ function lineFromInvoice(key: number, invoiceLine: InvoiceLine): CreditNoteFormL
     account_id: invoiceLine.account_id,
     quantity: String(invoiceLine.quantity),
     unit_price: String(invoiceLine.unit_price),
+    gst_code_id: invoiceLine.gst_code_id ?? "",
     gst_rate: normalizeGstRateDecimal(
       invoiceLine.gst_rate,
       invoiceLine.line_total,
@@ -67,13 +80,14 @@ function lineFromInvoice(key: number, invoiceLine: InvoiceLine): CreditNoteFormL
 }
 
 function linesToPayload(lines: CreditNoteFormLine[]): CreditNoteLineRequest[] {
-  return lines.map((l) => ({
-    account_id: l.account_id,
-    quantity: l.quantity,
-    unit_price: l.unit_price,
-    description: l.description.trim() || null,
-    gst_rate: l.gst_rate || "0",
-    invoice_line_id: l.invoice_line_id || null,
+  return lines.map((line) => ({
+    account_id: line.account_id,
+    quantity: line.quantity,
+    unit_price: line.unit_price,
+    description: line.description.trim() || null,
+    gst_code_id: line.gst_code_id || null,
+    gst_rate: line.gst_rate || "0",
+    invoice_line_id: line.invoice_line_id || null,
   }));
 }
 
@@ -101,6 +115,15 @@ export function IssueCreditNoteDialog({
   const [nextKey, setNextKey] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [gstCodes, setGstCodes] = useState<GstCode[]>([]);
+
+  useEffect(() => {
+    void listGstCodes()
+      .then(setGstCodes)
+      .catch((error) => {
+        setFormError(formatApiError(error));
+      });
+  }, []);
 
   const maxAmount = summary.remainingCreditable;
 
@@ -145,7 +168,9 @@ export function IssueCreditNoteDialog({
     value: string,
   ) {
     setLines((prev) =>
-      prev.map((line) => (line.key === key ? { ...line, [field]: value } : line)),
+      prev.map((line) =>
+        line.key === key ? { ...line, [field]: value } : line,
+      ),
     );
   }
 
@@ -180,7 +205,8 @@ export function IssueCreditNoteDialog({
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const n = i + 1;
-      if (!line.description.trim()) return `Line ${n}: description is required.`;
+      if (!line.description.trim())
+        return `Line ${n}: description is required.`;
       if (!line.account_id) return `Line ${n}: revenue account is required.`;
       const qty = Number.parseFloat(line.quantity);
       if (!Number.isFinite(qty) || qty <= 0) {
@@ -193,6 +219,9 @@ export function IssueCreditNoteDialog({
       const gst = Number.parseFloat(line.gst_rate);
       if (!Number.isFinite(gst) || gst < 0) {
         return `Line ${n}: GST rate must be 0 or greater.`;
+      }
+      if (gst > 0 && !line.gst_code_id) {
+        return `Line ${n}: GST code is required when GST applies.`;
       }
     }
 
@@ -219,7 +248,9 @@ export function IssueCreditNoteDialog({
         typeof crypto !== "undefined" && crypto.randomUUID
           ? crypto.randomUUID()
           : undefined;
-      const result = await issueCreditNote(invoice.id, payload, { idempotencyKey });
+      const result = await issueCreditNote(invoice.id, payload, {
+        idempotencyKey,
+      });
       onSuccess(result.credit_note_number);
     } catch (apiErr) {
       setFormError(formatApiError(apiErr));
@@ -239,14 +270,17 @@ export function IssueCreditNoteDialog({
         <CardHeader>
           <CardTitle id="issue-credit-note-title">Issue credit note</CardTitle>
           <CardDescription>
-            {invoice.invoice_number || "Invoice"} · {customer?.name ?? "Customer"}
+            {invoice.invoice_number || "Invoice"} ·{" "}
+            {customer?.name ?? "Customer"}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="mb-4 rounded-md border bg-muted/30 p-3 text-sm">
             <dl className="grid gap-2 sm:grid-cols-2">
               <div>
-                <dt className="text-muted-foreground">Original invoice total</dt>
+                <dt className="text-muted-foreground">
+                  Original invoice total
+                </dt>
                 <dd className="font-mono font-medium">
                   {formatMoney(summary.invoiceTotal)}
                 </dd>
@@ -258,13 +292,17 @@ export function IssueCreditNoteDialog({
                 </dd>
               </div>
               <div>
-                <dt className="text-muted-foreground">Remaining creditable amount</dt>
+                <dt className="text-muted-foreground">
+                  Remaining creditable amount
+                </dt>
                 <dd className="font-mono font-semibold text-amber-700 dark:text-amber-400">
                   {formatMoney(summary.remainingCreditable)}
                 </dd>
               </div>
               <div>
-                <dt className="text-muted-foreground">Maximum allowed credit note</dt>
+                <dt className="text-muted-foreground">
+                  Maximum allowed credit note
+                </dt>
                 <dd className="font-mono font-medium">
                   {formatMoney(maxAmount)}
                 </dd>
@@ -316,20 +354,34 @@ export function IssueCreditNoteDialog({
                 </Button>
               </div>
               <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full min-w-[800px] text-sm">
+                <table className="w-full min-w-[1100px] text-sm">
                   <thead>
                     <tr className="border-b bg-muted/40 text-left text-muted-foreground">
                       {invoice.lines.length > 0 ? (
                         <th className="px-2 py-2 font-medium">Invoice line</th>
                       ) : null}
-                      <th className="px-2 py-2 font-medium">Description</th>
-                      <th className="px-2 py-2 font-medium">Revenue account</th>
-                      <th className="px-2 py-2 font-medium w-20">Qty</th>
-                      <th className="px-2 py-2 font-medium w-24">Unit price</th>
-                      <th className="px-2 py-2 font-medium w-20">GST %</th>
-                      <th className="px-2 py-2 font-medium text-right">Subtotal</th>
+                      <th className="min-w-40 px-2 py-2 font-medium">
+                        Description
+                      </th>
+                      <th className="min-w-56 px-2 py-2 font-medium">
+                        Revenue account
+                      </th>
+                      <th className="w-24 min-w-24 px-2 py-2 font-medium">
+                        Qty
+                      </th>
+                      <th className="w-32 min-w-32 px-2 py-2 font-medium">
+                        Unit price
+                      </th>
+                      <th className="w-56 min-w-56 px-2 py-2 font-medium">
+                        GST code
+                      </th>
+                      <th className="px-2 py-2 font-medium text-right">
+                        Subtotal
+                      </th>
                       <th className="px-2 py-2 font-medium text-right">GST</th>
-                      <th className="px-2 py-2 font-medium text-right">Total</th>
+                      <th className="px-2 py-2 font-medium text-right">
+                        Total
+                      </th>
                       <th className="px-2 py-2 w-16" />
                     </tr>
                   </thead>
@@ -341,7 +393,10 @@ export function IssueCreditNoteDialog({
                         gst_rate: line.gst_rate,
                       });
                       return (
-                        <tr key={line.key} className="border-b border-muted align-top">
+                        <tr
+                          key={line.key}
+                          className="border-b border-muted align-top"
+                        >
                           {invoice.lines.length > 0 ? (
                             <td className="px-2 py-2">
                               <select
@@ -367,7 +422,11 @@ export function IssueCreditNoteDialog({
                               value={line.description}
                               disabled={submitting}
                               onChange={(e) =>
-                                updateLine(line.key, "description", e.target.value)
+                                updateLine(
+                                  line.key,
+                                  "description",
+                                  e.target.value,
+                                )
                               }
                             />
                           </td>
@@ -382,6 +441,7 @@ export function IssueCreditNoteDialog({
                           </td>
                           <td className="px-2 py-2">
                             <Input
+                              className="min-w-20"
                               type="number"
                               min="0"
                               step="any"
@@ -394,32 +454,53 @@ export function IssueCreditNoteDialog({
                           </td>
                           <td className="px-2 py-2">
                             <Input
+                              className="min-w-28"
                               type="number"
                               min="0"
                               step="0.01"
                               value={line.unit_price}
                               disabled={submitting}
                               onChange={(e) =>
-                                updateLine(line.key, "unit_price", e.target.value)
+                                updateLine(
+                                  line.key,
+                                  "unit_price",
+                                  e.target.value,
+                                )
                               }
                             />
                           </td>
                           <td className="px-2 py-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={gstRateDecimalToPercent(line.gst_rate)}
-                              disabled={submitting}
-                              title={`Decimal rate: ${line.gst_rate || "0"}`}
-                              onChange={(e) =>
-                                updateLine(
-                                  line.key,
-                                  "gst_rate",
-                                  gstRatePercentToDecimal(e.target.value),
-                                )
-                              }
-                            />
+                            <div className="min-w-40 space-y-1">
+                              <GstCodeSelect
+                                value={line.gst_code_id}
+                                codes={gstCodes}
+                                allowedKinds={[
+                                  "output",
+                                  "zero_rated",
+                                  "exempt",
+                                ]}
+                                disabled={submitting}
+                                onChange={(code) => {
+                                  setLines((previous) =>
+                                    previous.map((item) =>
+                                      item.key === line.key
+                                        ? {
+                                            ...item,
+                                            gst_code_id: code?.id ?? "",
+                                            gst_rate: code
+                                              ? String(code.rate)
+                                              : "0",
+                                          }
+                                        : item,
+                                    ),
+                                  );
+                                }}
+                              />
+
+                              <p className="text-xs text-muted-foreground">
+                                Rate: {Number(line.gst_rate || 0) * 100}%
+                              </p>
+                            </div>
                           </td>
                           <td className="px-2 py-2 text-right font-mono whitespace-nowrap">
                             {formatMoney(preview.line_total)}
@@ -454,18 +535,26 @@ export function IssueCreditNoteDialog({
             <div className="ml-auto max-w-xs space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-mono">{formatMoney(previewTotals.subtotal)}</span>
+                <span className="font-mono">
+                  {formatMoney(previewTotals.subtotal)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">GST</span>
-                <span className="font-mono">{formatMoney(previewTotals.gst_amount)}</span>
+                <span className="font-mono">
+                  {formatMoney(previewTotals.gst_amount)}
+                </span>
               </div>
               <div className="flex justify-between border-t pt-2 font-semibold">
                 <span>Credit note total</span>
-                <span className="font-mono">{formatMoney(previewTotals.total)}</span>
+                <span className="font-mono">
+                  {formatMoney(previewTotals.total)}
+                </span>
               </div>
               {!totalValidation.ok && previewTotals.total > 0 ? (
-                <p className="text-xs text-destructive">{totalValidation.message}</p>
+                <p className="text-xs text-destructive">
+                  {totalValidation.message}
+                </p>
               ) : null}
             </div>
 

@@ -22,6 +22,7 @@ export type InvoiceStatus = "draft" | "issued" | "paid" | "partial" | "overdue";
 export type InvoiceLine = {
   id: string;
   account_id: string;
+  gst_code_id: string | null;
   description: string | null;
   quantity: string | number;
   unit_price: string | number;
@@ -61,6 +62,7 @@ export type InvoiceLineRequest = {
   quantity: string;
   unit_price: string;
   description?: string | null;
+  gst_code_id?: string | null;
   gst_rate?: string;
 };
 
@@ -294,6 +296,7 @@ export type CreditNoteLine = {
   id: string;
   account_id: string;
   invoice_line_id: string | null;
+  gst_code_id: string | null;
   description: string | null;
   quantity: string | number;
   unit_price: string | number;
@@ -325,6 +328,7 @@ export type CreditNoteLineRequest = {
   quantity: string;
   unit_price: string;
   description?: string | null;
+  gst_code_id?: string | null;
   gst_rate?: string;
   invoice_line_id?: string | null;
 };
@@ -404,6 +408,7 @@ export type BillStatus = "draft" | "open" | "partial" | "paid" | "void";
 export type BillLine = {
   id: string;
   account_id: string;
+  gst_code_id: string | null;
   description: string | null;
   quantity: string | number;
   unit_price: string | number;
@@ -442,6 +447,7 @@ export type BillLineRequest = {
   quantity: string;
   unit_price: string;
   description?: string | null;
+  gst_code_id?: string | null;
   gst_rate?: string;
 };
 
@@ -599,6 +605,83 @@ export function getApAging(asOf?: string) {
   });
 }
 
+// ── US-15 / US-16: GST tracking and reporting ──────────────────────────────
+
+export type GstKind = "output" | "input" | "zero_rated" | "exempt";
+
+export type GstCode = {
+  id: string;
+  tenant_id: string | null;
+  code: string;
+  rate: string | number;
+  gst_kind: GstKind;
+  is_active: boolean;
+};
+
+export type GstSummary = {
+  reporting_period: string;
+  output_tax: string | number;
+  input_tax: string | number;
+  net_gst_payable: string | number;
+  zero_rated_supplies: string | number;
+  exempt_supplies: string | number;
+};
+
+export function listGstCodes(activeOnly = true) {
+  return api.get<GstCode[]>("/ar-ap/gst/codes", {
+    ...arApOpts(),
+    params: {
+      active_only: String(activeOnly),
+    },
+  });
+}
+
+export function initializeDefaultGstCodes() {
+  return api.post<GstCode[]>(
+    "/ar-ap/gst/codes/defaults",
+    undefined,
+    arApOpts(),
+  );
+}
+
+export function getGstSummary(reportingPeriod: string) {
+  return api.get<GstSummary>("/ar-ap/gst/summary", {
+    ...arApOpts(),
+    params: {
+      reporting_period: reportingPeriod,
+    },
+  });
+}
+
+export async function downloadGstSummaryCsv(
+  reportingPeriod: string,
+): Promise<Blob> {
+  const opts = arApOpts();
+  const base = opts.baseUrl.replace(/\/$/, "");
+  const path = `/ar-ap/gst/export?reporting_period=${encodeURIComponent(reportingPeriod)}`;
+  const url =
+    /^https?:\/\//i.test(base) || base.startsWith("/")
+      ? `${base}${path}`
+      : path;
+
+  const { getToken, getTenantId } = await import("./auth");
+  const headers: Record<string, string> = {};
+
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const tenantId = getTenantId();
+  if (tenantId) headers["X-Tenant-ID"] = tenantId;
+
+  const response = await fetch(url, { headers });
+
+  if (!response.ok) {
+    throw new Error(`GST CSV download failed (${response.status})`);
+  }
+
+  return response.blob();
+}
+
 // ── US-13: bank statement upload ─────────────────────────────────────────────
 
 export type BankTransaction = {
@@ -656,6 +739,7 @@ export function listUnmatched(bankAccountId?: string) {
       : {}),
   });
 }
+
 export function listMatched(bankAccountId?: string) {
   return api.get<BankTransaction[]>("/ar-ap/bank-transactions/matched", {
     ...arApOpts(),
