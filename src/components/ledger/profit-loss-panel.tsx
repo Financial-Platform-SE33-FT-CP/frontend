@@ -78,7 +78,7 @@ export function ProfitLossPanel({ tenantId }: ProfitLossPanelProps) {
             <SectionTable title="Expenses" lines={data.expense_lines} />
 
             <div className="rounded-md border px-4 py-3 text-sm font-medium">
-              Net Profit &mdash; Revenue {formatMoney(data.total_revenue)} &minus; Expense{" "}
+              Net Profit = Revenue {formatMoney(data.total_revenue)} &minus; Expense{" "}
               {formatMoney(data.total_expense)} ={" "}
               <span
                 className={cn(

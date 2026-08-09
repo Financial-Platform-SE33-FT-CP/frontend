@@ -271,6 +271,7 @@ export async function getCashFlow(
     ...ledgerOpts(),
     params: { from_date: fromDate, to_date: toDate },
   });
+}
 // ── Accounting Periods ──────────────────────────────────────────
 
 export type AccountingPeriod = {
