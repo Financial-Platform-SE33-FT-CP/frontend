@@ -22,7 +22,7 @@ export default function JournalEntryList({ entries, loading }: Props) {
       <CardHeader>
         <CardTitle>Journal Entries</CardTitle>
         <CardDescription>
-          Recent manual journal entries for this tenant.
+          Recent journal entries for this tenant.
         </CardDescription>
       </CardHeader>
       <CardContent>
