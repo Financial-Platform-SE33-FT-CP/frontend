@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Input } from "./input";
 import { listCoaAccounts, type CoaAccount } from "@/lib/coa-api";
 
@@ -19,7 +20,9 @@ export function AccountPicker({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLUListElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -46,7 +49,12 @@ export function AccountPicker({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(target) &&
+        !(dropdownRef.current && dropdownRef.current.contains(target))
+      ) {
         setOpen(false);
         setQuery("");
       }
@@ -54,6 +62,25 @@ export function AccountPicker({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setDropdownPos(null);
+      return;
+    }
+    function updatePos() {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+    updatePos();
+    window.addEventListener("scroll", updatePos, true);
+    window.addEventListener("resize", updatePos);
+    return () => {
+      window.removeEventListener("scroll", updatePos, true);
+      window.removeEventListener("resize", updatePos);
+    };
+  }, [open]);
 
   function select(account: CoaAccount) {
     onChange(account.id);
@@ -129,37 +156,42 @@ export function AccountPicker({
       {selectedAccount && !open && (
         <input type="hidden" name="account_id" value={selectedAccount.id} />
       )}
-      {open && (
-        <ul
-          role="listbox"
-          className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-md border bg-popover shadow-md"
-        >
-          {filtered.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-muted-foreground">
-              {accounts.length === 0 ? "Loading accounts..." : "No matching accounts"}
-            </li>
-          ) : (
-            filtered.map((account, idx) => (
-              <li
-                key={account.id}
-                role="option"
-                aria-selected={idx === highlightIndex}
-                className={`cursor-pointer px-3 py-2 text-sm ${
-                  idx === highlightIndex
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted"
-                }`}
-                onMouseEnter={() => setHighlightIndex(idx)}
-                onClick={() => select(account)}
-              >
-                <span className="font-mono text-xs">{account.code}</span>
-                <span className="mx-2 text-muted-foreground">-</span>
-                <span>{account.name}</span>
+      {open &&
+        dropdownPos &&
+        createPortal(
+          <ul
+            ref={dropdownRef}
+            role="listbox"
+            className="fixed z-[9999] max-h-48 overflow-auto rounded-md border bg-popover shadow-md"
+            style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+          >
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-muted-foreground">
+                {accounts.length === 0 ? "Loading accounts..." : "No matching accounts"}
               </li>
-            ))
-          )}
-        </ul>
-      )}
+            ) : (
+              filtered.map((account, idx) => (
+                <li
+                  key={account.id}
+                  role="option"
+                  aria-selected={idx === highlightIndex}
+                  className={`cursor-pointer px-3 py-2 text-sm ${
+                    idx === highlightIndex
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  }`}
+                  onMouseEnter={() => setHighlightIndex(idx)}
+                  onClick={() => select(account)}
+                >
+                  <span className="font-mono text-xs">{account.code}</span>
+                  <span className="mx-2 text-muted-foreground">-</span>
+                  <span>{account.name}</span>
+                </li>
+              ))
+            )}
+          </ul>,
+          document.body,
+        )}
     </div>
   );
 }

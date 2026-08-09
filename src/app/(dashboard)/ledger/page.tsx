@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { AccountLedgerPanel } from "@/components/ledger/account-ledger-panel";
+import { BalanceSheetPanel } from "@/components/ledger/balance-sheet-panel";
+import { CashFlowPanel } from "@/components/ledger/cash-flow-panel";
+import { ProfitLossPanel } from "@/components/ledger/profit-loss-panel";
 import { TrialBalancePanel } from "@/components/ledger/trial-balance-panel";
 import { RoleGate } from "@/components/tenant/role-gate";
 import { useActiveTenantId } from "@/hooks/use-active-tenant";
@@ -9,7 +12,7 @@ import { useWorkspaceRole } from "@/hooks/use-workspace-role";
 import { canViewTenant } from "@/lib/tenant-roles";
 import { cn } from "@/lib/utils";
 
-type LedgerTab = "trial-balance" | "account-ledger";
+type LedgerTab = "trial-balance" | "account-ledger" | "profit-loss" | "balance-sheet" | "cash-flow";
 
 export default function LedgerPage() {
   const tenantId = useActiveTenantId();
@@ -49,6 +52,9 @@ export default function LedgerPage() {
             [
               ["trial-balance", "Trial balance"],
               ["account-ledger", "Account ledger"],
+              ["profit-loss", "Profit & Loss"],
+              ["balance-sheet", "Balance Sheet"],
+              ["cash-flow", "Cash Flow"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -78,6 +84,12 @@ export default function LedgerPage() {
             onAccountChange={setSelectedAccountId}
           />
         )}
+
+        {tenantId && tab === "profit-loss" && <ProfitLossPanel tenantId={tenantId} />}
+
+        {tenantId && tab === "balance-sheet" && <BalanceSheetPanel tenantId={tenantId} />}
+
+        {tenantId && tab === "cash-flow" && <CashFlowPanel tenantId={tenantId} />}
       </RoleGate>
     </div>
   );
