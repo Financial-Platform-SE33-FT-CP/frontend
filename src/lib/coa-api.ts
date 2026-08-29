@@ -3,7 +3,7 @@ import { setTenantId } from "./auth";
 import { getActiveTenantId } from "./workspace-session";
 
 // Production (behind nginx): leave unset → relative path /api/coa, calls go through proxy.
-// Local dev: set NEXT_PUBLIC_COA_SERVICE_URL=http://localhost:8003 in .env.local
+// Local dev: set NEXT_PUBLIC_COA_SERVICE_URL=http://localhost:8004 in .env.local
 const COA_BASE_URL =
   process.env.NEXT_PUBLIC_COA_SERVICE_URL ??
   process.env.NEXT_PUBLIC_COA_API_URL ??

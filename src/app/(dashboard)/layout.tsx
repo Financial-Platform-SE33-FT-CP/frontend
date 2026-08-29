@@ -14,7 +14,14 @@ const sidebarLinks = [
   { href: "/coa", label: "Chart of Accounts" },
   { href: "/opening-balance", label: "Opening balance" },
   { href: "/journal-entries", label: "Journal Entries" },
+  { href: "/invoices", label: "Invoices" },
+  { href: "/banking", label: "Banking & Recon" },
+  { href: "/bills", label: "Bills" },
+  { href: "/gst", label: "GST Reporting" },
   { href: "/ledger", label: "General ledger" },
+  { href: "/audit-trail", label: "Audit Trail" },
+  { href: "/year-end", label: "Year-End Close" },
+  { href: "/billing", label: "Subscription" },
 ];
 
 export default function DashboardLayout({

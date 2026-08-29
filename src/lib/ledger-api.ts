@@ -1,6 +1,7 @@
 import { api, formatApiErrorBody } from "./api";
 import { getToken, setTenantId } from "./auth";
 import { getActiveTenantId } from "./workspace-session";
+import type { JournalEntry } from "./journal-entries";
 
 // Production (behind nginx): leave unset → relative path /api/ledger, calls go through proxy.
 // Local dev: set NEXT_PUBLIC_LEDGER_SERVICE_URL=http://localhost:8003 in .env.local
@@ -181,4 +182,128 @@ export async function getAccountLedger(
     ...ledgerOpts(),
     params: Object.keys(params).length ? params : undefined,
   });
+}
+
+// ── Reports (US-17 / US-18 / US-19) ───────────────────────────────────────────
+
+export type ReportAccountLine = {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: string;
+  total_debit: string;
+  total_credit: string;
+  net_amount: string;
+};
+
+export type ProfitLossReport = {
+  from_date: string;
+  to_date: string;
+  revenue_lines: ReportAccountLine[];
+  expense_lines: ReportAccountLine[];
+  total_revenue: string;
+  total_expense: string;
+  net_profit: string;
+};
+
+export type BalanceSheetReport = {
+  as_of_date: string;
+  asset_lines: ReportAccountLine[];
+  liability_lines: ReportAccountLine[];
+  equity_lines: ReportAccountLine[];
+  retained_earnings: string;
+  total_assets: string;
+  total_liabilities: string;
+  total_equity: string;
+  is_balanced: boolean;
+  imbalance: string;
+};
+
+export type CashFlowSectionLine = {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  change_amount: string;
+};
+
+export type CashFlowReport = {
+  from_date: string;
+  to_date: string;
+  net_income: string;
+  operating_adjustments: CashFlowSectionLine[];
+  operating_cash_flow: string;
+  investing_adjustments: CashFlowSectionLine[];
+  investing_cash_flow: string;
+  financing_adjustments: CashFlowSectionLine[];
+  financing_cash_flow: string;
+  net_cash_change: string;
+  beginning_cash: string;
+  ending_cash: string;
+};
+
+export async function getProfitLoss(
+  fromDate?: string,
+  toDate?: string,
+): Promise<ProfitLossReport> {
+  const params: Record<string, string> = {};
+  if (fromDate) params.from_date = fromDate;
+  if (toDate) params.to_date = toDate;
+  return api.get<ProfitLossReport>("/ledger/reports/profit-loss", {
+    ...ledgerOpts(),
+    params: Object.keys(params).length ? params : undefined,
+  });
+}
+
+export async function getBalanceSheet(asOfDate?: string): Promise<BalanceSheetReport> {
+  const params: Record<string, string> = {};
+  if (asOfDate) params.as_of_date = asOfDate;
+  return api.get<BalanceSheetReport>("/ledger/reports/balance-sheet", {
+    ...ledgerOpts(),
+    params: Object.keys(params).length ? params : undefined,
+  });
+}
+
+export async function getCashFlow(
+  fromDate: string,
+  toDate: string,
+): Promise<CashFlowReport> {
+  return api.get<CashFlowReport>("/ledger/reports/cash-flow", {
+    ...ledgerOpts(),
+    params: { from_date: fromDate, to_date: toDate },
+  });
+}
+// ── Accounting Periods ──────────────────────────────────────────
+
+export type AccountingPeriod = {
+  id: string;
+  start_date: string;
+  end_date: string;
+  is_closed: boolean;
+  closed_by: string | null;
+  created_at: string;
+};
+
+export type CloseFiscalYearResult = {
+  closing_journal_entry: JournalEntry | null;
+  period_id: string;
+  next_period: AccountingPeriod | null;
+  message: string;
+};
+
+export async function listPeriods(): Promise<AccountingPeriod[]> {
+  return api.get<AccountingPeriod[]>("/ledger/periods", ledgerOpts());
+}
+
+export async function getCurrentPeriod(): Promise<AccountingPeriod> {
+  return api.get<AccountingPeriod>("/ledger/periods/current", ledgerOpts());
+}
+
+export async function closePeriod(
+  periodId: string,
+): Promise<CloseFiscalYearResult> {
+  return api.post<CloseFiscalYearResult>(
+    `/ledger/periods/${periodId}/close`,
+    null,
+    ledgerOpts(),
+  );
 }
